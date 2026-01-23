@@ -59,6 +59,9 @@ class MarketplaceExtension:
     created_at: datetime
     updated_at: datetime
     keywords: list[str]
+    # Token budget info (helps users check model compatibility)
+    context_tokens: int = 0
+    min_model_tier: str = "any"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> MarketplaceExtension:
@@ -79,6 +82,8 @@ class MarketplaceExtension:
             created_at=datetime.fromisoformat(data["created_at"].replace("Z", "+00:00")),
             updated_at=datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00")),
             keywords=data.get("keywords", []),
+            context_tokens=int(data.get("context_tokens", 0)),
+            min_model_tier=data.get("min_model_tier", "any"),
         )
 
     @property
