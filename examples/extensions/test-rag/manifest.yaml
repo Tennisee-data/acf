@@ -7,6 +7,11 @@ license: free
 
 retriever_class: TestRAGRetriever
 
+# Token budget - RAG extensions inject context into prompts
+# This test RAG returns ~2K tokens of context
+context_tokens: 2000
+min_model_tier: small  # Works with 7B+ models (needs 8K+ context)
+
 keywords:
   - test
   - rag

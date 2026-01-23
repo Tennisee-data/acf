@@ -71,18 +71,23 @@ def list_extensions(
     table.add_column("Name", style="cyan")
     table.add_column("Type", style="green")
     table.add_column("Version")
+    table.add_column("Context", justify="right")
+    table.add_column("Min Model", style="yellow")
     table.add_column("Hook Point")
-    table.add_column("License")
     table.add_column("Author")
 
     for ext in sorted(installed, key=lambda x: x.name):
         hook = ext.hook_point.value if ext.hook_point else "-"
+        # Format context tokens and model tier
+        ctx = ext.context_tokens_formatted if hasattr(ext, 'context_tokens_formatted') else "-"
+        tier = ext.min_model_tier.value if hasattr(ext, 'min_model_tier') else "any"
         table.add_row(
             ext.name,
             ext.type.value,
             ext.version,
+            ctx,
+            tier,
             hook,
-            ext.license.value,
             ext.author,
         )
 
@@ -118,6 +123,29 @@ def show(
 
     if manifest.hook_point:
         console.print(f"  Hook Point: {manifest.hook_point.value}")
+
+    # Token budget info
+    console.print(f"\n[bold]Context Budget[/bold]")
+    ctx_tokens = manifest.context_tokens_formatted if hasattr(manifest, 'context_tokens_formatted') else "minimal"
+    console.print(f"  Context Tokens: {ctx_tokens}")
+    if hasattr(manifest, 'min_model_tier'):
+        console.print(f"  Min Model Tier: {manifest.min_model_tier.value}")
+        # Show compatibility
+        compatible = manifest.get_compatible_tiers() if hasattr(manifest, 'get_compatible_tiers') else []
+        if compatible:
+            tier_icons = {
+                "small": "7B",
+                "medium": "14B",
+                "large": "32B+",
+            }
+            compat_str = " | ".join(
+                f"[green]{tier_icons.get(t.value, t.value)}[/green]" if t in compatible
+                else f"[dim]{tier_icons.get(t.value, t.value)}[/dim]"
+                for t in [manifest.min_model_tier.__class__.SMALL,
+                          manifest.min_model_tier.__class__.MEDIUM,
+                          manifest.min_model_tier.__class__.LARGE]
+            )
+            console.print(f"  Compatible: {compat_str}")
 
     if manifest.agent_class:
         console.print(f"  Agent Class: {manifest.agent_class}")

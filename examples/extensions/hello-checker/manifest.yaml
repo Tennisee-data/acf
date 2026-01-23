@@ -12,6 +12,11 @@ agent_class: HelloCheckerAgent
 # No external dependencies needed
 requires: []
 
+# Token budget - helps users know if this fits their model's context window
+# This agent uses ~500 tokens for its prompts
+context_tokens: 500
+min_model_tier: any  # Works with any model (7B, 14B, 32B+)
+
 # Metadata
 keywords:
   - test

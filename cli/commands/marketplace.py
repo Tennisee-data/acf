@@ -83,23 +83,27 @@ def search(
         table.add_column("Name", style="cyan")
         table.add_column("Type", style="green")
         table.add_column("Version")
+        table.add_column("Context", justify="right")
+        table.add_column("Min", style="yellow")
         table.add_column("Price", justify="right")
-        table.add_column("Downloads", justify="right")
-        table.add_column("Rating")
         table.add_column("Description")
 
         for ext in results:
             price = "Free" if ext.is_free else f"${ext.price_usd:.2f}"
-            rating = f"★ {ext.rating:.1f}" if ext.rating else "-"
-            desc = ext.description[:40] + "..." if len(ext.description) > 40 else ext.description
+            desc = ext.description[:35] + "..." if len(ext.description) > 35 else ext.description
+            # Context tokens info
+            ctx = "-"
+            if hasattr(ext, 'context_tokens') and ext.context_tokens:
+                ctx = f"{ext.context_tokens / 1000:.1f}K" if ext.context_tokens >= 1000 else str(ext.context_tokens)
+            tier = getattr(ext, 'min_model_tier', 'any') or "any"
 
             table.add_row(
                 ext.name,
                 ext.type,
                 ext.version,
+                ctx,
+                tier,
                 price,
-                str(ext.downloads),
-                rating,
                 desc,
             )
 
@@ -177,6 +181,23 @@ def info(
         console.print(f"  Rating: {rating}")
         console.print(f"  Official: {'Yes' if ext.is_official else 'No'}")
         console.print(f"  Updated: {ext.updated_at.strftime('%Y-%m-%d')}")
+
+        # Show context budget if available
+        if hasattr(ext, 'context_tokens') and ext.context_tokens:
+            console.print(f"\n[bold]Context Budget[/bold]")
+            ctx = f"{ext.context_tokens / 1000:.1f}K" if ext.context_tokens >= 1000 else str(ext.context_tokens)
+            console.print(f"  Context Tokens: {ctx}")
+            if hasattr(ext, 'min_model_tier') and ext.min_model_tier:
+                console.print(f"  Min Model Tier: {ext.min_model_tier}")
+                # Show compatibility icons
+                tier_compat = {
+                    "any": "[green]7B[/green] | [green]14B[/green] | [green]32B+[/green]",
+                    "small": "[green]7B[/green] | [green]14B[/green] | [green]32B+[/green]",
+                    "medium": "[dim]7B[/dim] | [green]14B[/green] | [green]32B+[/green]",
+                    "large": "[dim]7B[/dim] | [dim]14B[/dim] | [green]32B+[/green]",
+                }
+                compat = tier_compat.get(ext.min_model_tier, tier_compat["any"])
+                console.print(f"  Compatible: {compat}")
 
         if ext.keywords:
             console.print(f"\n[bold]Keywords[/bold]: {', '.join(ext.keywords)}")

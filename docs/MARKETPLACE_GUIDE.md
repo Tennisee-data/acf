@@ -74,6 +74,31 @@ keywords:
   - scanner
   - vulnerabilities
 priority: 50  # Lower = runs earlier (default: 50)
+
+# Token budget (helps users choose compatible models)
+context_tokens: 2000       # Tokens this extension adds to context
+min_model_tier: small      # any | small (7B+) | medium (14B+) | large (32B+)
+```
+
+### Token Budget Guidelines
+
+Extensions consume context window space. Declare your token usage so users can check compatibility:
+
+| Model Tier | Context Window | Example Models |
+|------------|----------------|----------------|
+| `any` | 4K+ | Any model |
+| `small` | 8K+ | llama3:8b, qwen2.5:7b, codellama:7b |
+| `medium` | 32K+ | qwen3:14b, mistral:7b, mixtral:8x7b |
+| `large` | 128K+ | qwen2.5:32b, gpt-4-turbo, claude-3 |
+
+**How to estimate `context_tokens`:**
+1. Count tokens in your system prompts
+2. Add expected input context (code snippets, etc.)
+3. Add ~20% buffer for safety
+
+```bash
+# Quick token estimation (chars / 4)
+wc -c your_prompt.txt | awk '{print int($1/4) " tokens"}'
 ```
 
 ### Available Hook Points

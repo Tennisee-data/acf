@@ -83,6 +83,24 @@ class ManifestError(Exception):
     pass
 
 
+class ModelTier(str, Enum):
+    """Model size tiers for compatibility checking."""
+
+    SMALL = "small"      # 7B models: 8K-16K context
+    MEDIUM = "medium"    # 14B models: 32K context
+    LARGE = "large"      # 32B+ models: 128K+ context
+    ANY = "any"          # Works with any model
+
+
+# Context window thresholds for each tier
+MODEL_TIER_CONTEXT = {
+    ModelTier.SMALL: 8192,     # 7B models (conservative)
+    ModelTier.MEDIUM: 32768,   # 14B models
+    ModelTier.LARGE: 131072,   # 32B+ models
+    ModelTier.ANY: 4096,       # Minimal requirement
+}
+
+
 @dataclass
 class ExtensionManifest:
     """Extension manifest containing metadata and configuration.
@@ -106,6 +124,8 @@ class ExtensionManifest:
         conflicts_with: List of extension names that conflict.
         priority: Execution priority (lower = earlier, default 50).
         config_schema: JSON schema for extension configuration.
+        context_tokens: Total tokens this extension adds to context window.
+        min_model_tier: Minimum model tier required (small/medium/large/any).
     """
 
     name: str
@@ -138,6 +158,10 @@ class ExtensionManifest:
     conflicts_with: list[str] = field(default_factory=list)
     priority: int = 50
     config_schema: dict[str, Any] | None = None
+
+    # Token budget (for marketplace display)
+    context_tokens: int = 0  # Total tokens added to context window
+    min_model_tier: ModelTier = ModelTier.ANY  # Minimum model tier required
 
     def __post_init__(self) -> None:
         """Validate the manifest after initialization."""
@@ -222,6 +246,11 @@ class ExtensionManifest:
             if "hook_point" in data:
                 hook_point = HookPoint(data["hook_point"])
 
+            # Parse model tier
+            min_tier = ModelTier.ANY
+            if "min_model_tier" in data:
+                min_tier = ModelTier(data["min_model_tier"])
+
             return cls(
                 name=data.get("name", ""),
                 version=data.get("version", ""),
@@ -241,6 +270,8 @@ class ExtensionManifest:
                 conflicts_with=data.get("conflicts_with", []),
                 priority=int(data.get("priority", 50)),
                 config_schema=data.get("config_schema"),
+                context_tokens=int(data.get("context_tokens", 0)),
+                min_model_tier=min_tier,
             )
         except (ValueError, KeyError) as e:
             raise ManifestError(f"Invalid manifest data: {e}")
@@ -284,6 +315,10 @@ class ExtensionManifest:
             result["priority"] = self.priority
         if self.config_schema:
             result["config_schema"] = self.config_schema
+        if self.context_tokens > 0:
+            result["context_tokens"] = self.context_tokens
+        if self.min_model_tier != ModelTier.ANY:
+            result["min_model_tier"] = self.min_model_tier.value
 
         return result
 
@@ -310,6 +345,47 @@ class ExtensionManifest:
     def is_commercial(self) -> bool:
         """Check if extension is commercial."""
         return self.license == License.COMMERCIAL
+
+    @property
+    def context_tokens_formatted(self) -> str:
+        """Format context tokens for display (e.g., '2.5K', '15K')."""
+        if self.context_tokens == 0:
+            return "minimal"
+        elif self.context_tokens >= 1000:
+            return f"{self.context_tokens / 1000:.1f}K"
+        else:
+            return str(self.context_tokens)
+
+    @property
+    def min_context_window(self) -> int:
+        """Minimum context window required for this extension."""
+        return MODEL_TIER_CONTEXT.get(self.min_model_tier, 4096)
+
+    def is_compatible_with_model(self, context_window: int) -> bool:
+        """Check if extension is compatible with a model's context window.
+
+        Args:
+            context_window: Model's context window size in tokens.
+
+        Returns:
+            True if extension can fit within the context window.
+        """
+        # Extension needs: its own tokens + buffer for prompts/output
+        required = self.context_tokens + 4000  # 4K buffer for system/output
+        return context_window >= required
+
+    def get_compatible_tiers(self) -> list[ModelTier]:
+        """Get list of compatible model tiers.
+
+        Returns:
+            List of ModelTier values this extension is compatible with.
+        """
+        compatible = []
+        for tier in [ModelTier.SMALL, ModelTier.MEDIUM, ModelTier.LARGE]:
+            tier_context = MODEL_TIER_CONTEXT[tier]
+            if self.is_compatible_with_model(tier_context):
+                compatible.append(tier)
+        return compatible if compatible else [ModelTier.LARGE]
 
     def __repr__(self) -> str:
         return (

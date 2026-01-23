@@ -8,6 +8,11 @@ license: free
 hook_point: "after:implementation"
 agent_class: CodeReviewAgent
 
+# Token budget - code review needs to analyze full implementation
+# Uses ~4K tokens for prompts + receives implementation context
+context_tokens: 4000
+min_model_tier: medium  # Recommended 14B+ for quality reviews
+
 keywords:
   - review
   - quality

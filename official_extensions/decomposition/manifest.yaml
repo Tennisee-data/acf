@@ -8,6 +8,10 @@ license: free
 hook_point: "before:design"
 agent_class: DecompositionAgent
 
+# Token budget - decomposition analyzes feature specs
+context_tokens: 2500
+min_model_tier: small  # Works with 7B+ models
+
 keywords:
   - decomposition
   - subtasks

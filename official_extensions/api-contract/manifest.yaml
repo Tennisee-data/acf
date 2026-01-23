@@ -8,6 +8,10 @@ license: free
 hook_point: "before:implementation"
 agent_class: ApiContractAgent
 
+# Token budget - this agent uses detailed prompts for API design
+context_tokens: 3000
+min_model_tier: small  # Works with 7B+ models
+
 keywords:
   - api
   - contract
