@@ -1,0 +1,16 @@
+name: decomposition
+version: 1.0.0
+type: agent
+author: ACF Team
+description: Break complex features into smaller, manageable subtasks
+license: free
+
+hook_point: "before:design"
+agent_class: DecompositionAgent
+
+keywords:
+  - decomposition
+  - subtasks
+  - planning
+  - complexity
+priority: 40

@@ -1,0 +1,17 @@
+name: api-contract
+version: 1.0.0
+type: agent
+author: ACF Team
+description: Define API boundaries and contracts before implementation
+license: free
+
+hook_point: "before:implementation"
+agent_class: ApiContractAgent
+
+keywords:
+  - api
+  - contract
+  - interface
+  - boundaries
+  - openapi
+priority: 45

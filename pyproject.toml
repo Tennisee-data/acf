@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "acf"
+version = "1.0.0"
+description = "ACF Local Edition - 100% local AI code generation with Ollama/LM Studio"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "AgentCodeFactory", email = "support@agentcodefactory.com" }
+]
+keywords = ["ai", "llm", "code-generation", "pipeline", "ollama", "local", "offline"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0.0",
+    "httpx>=0.27.0",
+    "tiktoken>=0.7.0",
+    "gitpython>=3.1.0",
+]
+
+[project.optional-dependencies]
+semantic = ["sentence-transformers>=2.2.0", "scikit-learn>=1.3.0", "numpy>=1.24.0"]
+openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.40.0"]
+full = ["sentence-transformers>=2.2.0", "scikit-learn>=1.3.0", "numpy>=1.24.0", "openai>=1.0.0", "anthropic>=0.40.0"]
+dev = ["pytest>=7.4.0", "pytest-cov>=4.1.0", "ruff>=0.1.0", "mypy>=1.5.0"]
+
+[project.scripts]
+acf = "pipeline.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/Tennisee-data/acf"
+Marketplace = "https://marketplace.agentcodefactory.com"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pipeline", "agents", "orchestrator", "llm_backend", "tools", "schemas", "rag", "scaffolding", "routing", "plugins", "extensions", "local_storage", "profiles", "memory", "integrations"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+select = ["E", "F", "I", "N", "W", "UP"]

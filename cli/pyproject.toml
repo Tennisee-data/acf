@@ -1,0 +1,82 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agentcodefactory"
+version = "0.1.0"
+description = "CLI and SDK for AgentCodeFactory - Generate production-ready code with AI"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "AgentCodeFactory", email = "support@agentcodefactory.com" }
+]
+keywords = [
+    "ai",
+    "code-generation",
+    "cli",
+    "sdk",
+    "anthropic",
+    "claude",
+    "developer-tools",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "typer>=0.9.0",
+    "click>=8.0",
+    "httpx>=0.25",
+    "rich>=13.0",
+    "tomli>=2.0;python_version<'3.11'",
+    "tomli-w>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://agentcodefactory.com"
+Documentation = "https://agentcodefactory.com/docs"
+Repository = "https://github.com/agentcodefactory/cli"
+Issues = "https://github.com/agentcodefactory/cli/issues"
+
+[project.scripts]
+acf = "agentcodefactory.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agentcodefactory"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --cov=agentcodefactory"

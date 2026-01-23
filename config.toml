@@ -1,0 +1,123 @@
+# ACF Local Edition Configuration
+# Simplified configuration for 100% local/offline operation
+# Full documentation: https://github.com/Tennisee-data/acf
+
+[llm]
+# Backend selection: "auto" tries ollama > lmstudio
+# For offline use, install Ollama (ollama.ai) or LM Studio
+backend = "auto"
+
+# Models - adjust based on your hardware
+# For 8GB VRAM: use 7b models
+# For 16GB VRAM: use 14b models
+# For 24GB+ VRAM: use 32b models
+model_general = "qwen2.5-coder:14b"
+model_code = "qwen2.5-coder:14b"
+
+# Timeout for LLM requests (seconds)
+timeout = 600
+
+[pipeline]
+# Directory for pipeline artifacts and iterations
+artifacts_dir = "artifacts"
+log_level = "INFO"
+
+# Iterative code fixing
+[pipeline.fix_loop]
+enabled = true
+max_iterations = 5
+
+[git]
+# Local git versioning (no cloud storage needed)
+auto_commit = true     # Auto-commit each pipeline iteration
+auto_push = false      # Keep everything local by default
+
+[runtime]
+# Execution mode: "local" for simplicity, "docker" for isolation
+mode = "local"
+
+[routing]
+# Multi-model routing for optimal performance/cost
+enabled = true
+model_cheap = "qwen2.5-coder:7b"
+model_medium = "yi-coder:9b"
+model_premium = "qwen2.5-coder:32b"
+
+# Domains that always use the premium model
+premium_domains = ["payments", "security", "auth", "database"]
+
+[plugins]
+enabled = true
+
+# ============================================================================
+# EXTENSIONS (ACF Local Edition Marketplace)
+# ============================================================================
+
+[extensions]
+# Directory for installed extensions
+# Default: ~/.coding-factory/extensions
+extensions_dir = "~/.coding-factory/extensions"
+
+# Marketplace API URL (for downloading extensions)
+marketplace_url = "https://marketplace.agentcodefactory.com/api/v1"
+
+# Enabled extensions (empty = all installed extensions enabled)
+# List extension names to enable only specific ones
+agents = []
+profiles = []
+rag_kits = []
+
+# Example: Enable only specific extensions
+# agents = ["secrets-scan", "dependency-audit"]
+# profiles = ["vue", "golang"]
+# rag_kits = ["semantic-premium"]
+
+# ============================================================================
+# PROFILES (Built-in + Extensions)
+# ============================================================================
+
+# Built-in profiles: react, fastapi, django, node, rust
+# Additional profiles can be installed from the marketplace
+
+# Environment-specific profile overrides
+[profiles.dev]
+llm_backend = "ollama"
+
+[profiles.prod]
+llm_backend = "anthropic"
+
+# ============================================================================
+# RAG (Retrieval Augmented Generation)
+# ============================================================================
+
+[rag]
+# For local edition, we use keyword-based RAG by default (no external deps)
+# Install "semantic-premium" extension for vector-based retrieval
+mode = "keyword"
+
+# Semantic RAG settings (when semantic-premium extension installed)
+# embedding_model = "nomic-embed-text"
+# store_path = "~/.coding-factory/rag_store"
+
+# ============================================================================
+# MEMORY (Learning from Past Runs)
+# ============================================================================
+
+[memory]
+enabled = true
+store_location = "global"  # ~/.coding-factory/memory
+search_mode = "hybrid"
+
+# ============================================================================
+# LOCAL GIT VERSIONING
+# ============================================================================
+
+[local_storage]
+# Auto-commit each pipeline iteration to local git
+auto_commit = true
+
+# Commit message prefix for ACF commits
+commit_prefix = "[ACF]"
+
+# Create tags for significant iterations
+auto_tag = false

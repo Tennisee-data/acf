@@ -1,0 +1,16 @@
+name: code-review
+version: 1.0.0
+type: agent
+author: ACF Team
+description: Senior engineer code review with actionable feedback
+license: free
+
+hook_point: "after:implementation"
+agent_class: CodeReviewAgent
+
+keywords:
+  - review
+  - quality
+  - best-practices
+  - feedback
+priority: 60

@@ -1,0 +1,20 @@
+name: hello-checker
+version: 1.0.0
+type: agent
+author: ACF Team
+description: Test agent that verifies implementation contains expected patterns
+license: free
+
+# Agent runs after implementation stage
+hook_point: "after:implementation"
+agent_class: HelloCheckerAgent
+
+# No external dependencies needed
+requires: []
+
+# Metadata
+keywords:
+  - test
+  - verification
+  - patterns
+priority: 50

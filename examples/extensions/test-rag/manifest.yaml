@@ -1,0 +1,13 @@
+name: test-rag
+version: 1.0.0
+type: rag
+author: Test
+description: Test RAG extension to verify marketplace integration
+license: free
+
+retriever_class: TestRAGRetriever
+
+keywords:
+  - test
+  - rag
+  - debug
