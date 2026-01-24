@@ -29,7 +29,26 @@ acf run "Add user authentication with JWT"
 
 - Python 3.11+
 - [Ollama](https://ollama.ai) or [LM Studio](https://lmstudio.ai)
-- Recommended model: `qwen2.5-coder:14b`
+
+### LLM Backend Setup
+
+**Quick start with Ollama:**
+```bash
+# Install Ollama (macOS)
+brew install ollama
+
+# Start the server
+ollama serve
+
+# Pull a model (in another terminal)
+ollama pull qwen2.5-coder:7b
+```
+
+> **Important:** Update `config.toml` to match your installed models. See guides below.
+
+**Detailed guides:**
+- [Ollama Setup Guide](docs/OLLAMA_SETUP.md) - Recommended for CLI users
+- [LM Studio Setup Guide](docs/LM_STUDIO_SETUP.md) - GUI alternative
 
 ## Installation
 
@@ -96,21 +115,27 @@ acf extensions enable secrets-scan
 
 ## Configuration
 
-Create `config.toml` in your project:
+Create `config.toml` in your project. **Make sure models match what you have installed** (`ollama list`):
 
 ```toml
 [llm]
 backend = "auto"  # ollama, lmstudio, openai, anthropic
-model = "qwen2.5-coder:14b"
+model_general = "qwen2.5-coder:7b"  # Must match an installed model
+model_code = "qwen2.5-coder:7b"
 
 [extensions]
 extensions_dir = "~/.coding-factory/extensions"
 
 [routing]
+# Enable to use different models for different task complexities
+# All models must be installed: ollama pull <model>
 enabled = true
-model_cheap = "qwen2.5-coder:7b"
-model_premium = "qwen2.5-coder:32b"
+model_cheap = "qwen2.5-coder:7b"    # Simple tasks
+model_medium = "yi-coder:9b"         # Medium complexity
+model_premium = "qwen2.5-coder:32b"  # Complex tasks
 ```
+
+> **Common error:** `404 Not Found` means the model in config.toml is not installed. Run `ollama list` to see available models.
 
 ---
 
