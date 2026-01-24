@@ -48,6 +48,12 @@ def run(
         "-r",
         help="Path to target repository (default: current directory)",
     ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory for generated project (default: ./{run_id}/)",
+    ),
     profile: str = typer.Option(
         "dev",
         "--profile",
@@ -218,6 +224,7 @@ def run(
         state = runner.run(
             feature=actual_feature,
             repo_path=repo_path,
+            output_dir=output,
             resume_run_id=resume,
             dry_run=dry_run,
             decompose=decompose,
@@ -420,15 +427,53 @@ def runs() -> None:
     console.print(table)
 
 
+def _find_run_artifacts(run_id: str, config) -> Path | None:
+    """Find artifacts directory for a run, checking both new and legacy structure.
+
+    Args:
+        run_id: Run ID to find
+        config: Configuration object
+
+    Returns:
+        Path to artifacts directory, or None if not found
+    """
+    # 1. Check legacy artifacts/ directory
+    legacy_dir = Path(config.pipeline.artifacts_dir) / run_id
+    if legacy_dir.exists():
+        return legacy_dir
+
+    # 2. Check new structure: scan for .acf/runs/{run_id}/ in current directory
+    cwd = Path.cwd()
+    for proj_dir in cwd.iterdir():
+        if not proj_dir.is_dir():
+            continue
+
+        acf_run_dir = proj_dir / ".acf" / "runs" / run_id
+        if acf_run_dir.exists():
+            return acf_run_dir
+
+    # 3. Check if run_id is a project directory with .acf/runs/
+    potential_project = cwd / run_id
+    if potential_project.exists():
+        acf_runs = potential_project / ".acf" / "runs"
+        if acf_runs.exists():
+            # Return the first (and should be only) run in that project
+            for run_dir in acf_runs.iterdir():
+                if run_dir.is_dir():
+                    return run_dir
+
+    return None
+
+
 @app.command()
 def show(
     run_id: str = typer.Argument(..., help="Run ID to show details for"),
 ) -> None:
     """Show details of a specific run."""
     config = get_config()
-    artifacts_dir = Path(config.pipeline.artifacts_dir) / run_id
+    artifacts_dir = _find_run_artifacts(run_id, config)
 
-    if not artifacts_dir.exists():
+    if not artifacts_dir:
         rprint(f"[red]Run not found: {run_id}[/red]")
         raise typer.Exit(1)
 
@@ -444,6 +489,12 @@ def show(
         rprint(f"[green]Feature:[/green] {state_data.get('feature_description', '')}")
         rprint(f"[green]Status:[/green] {state_data.get('status', 'unknown')}")
         rprint(f"[green]Current Stage:[/green] {state_data.get('current_stage', 'unknown')}")
+
+        # Show project directory for new structure
+        project_dir = state_data.get("project_dir")
+        if project_dir:
+            rprint(f"[green]Project:[/green] {project_dir}")
+
         rprint()
 
         # Show stages
@@ -484,7 +535,7 @@ def extract(
         None,
         "--output",
         "-o",
-        help="Output directory (default: artifacts/RUN_ID/generated_project)",
+        help="Output directory (default: project_dir or artifacts/RUN_ID/generated_project)",
     ),
 ) -> None:
     """Extract generated code files from a run.
@@ -497,11 +548,12 @@ def extract(
         coding-factory extract 2026-01-05-151822 -o ~/my-project
     """
     import re
+    import json as json_module
 
     config = get_config()
-    artifacts_dir = Path(config.pipeline.artifacts_dir) / run_id
+    artifacts_dir = _find_run_artifacts(run_id, config)
 
-    if not artifacts_dir.exists():
+    if not artifacts_dir:
         rprint(f"[red]Run not found: {run_id}[/red]")
         raise typer.Exit(1)
 
@@ -514,7 +566,18 @@ def extract(
     if output:
         project_dir = output
     else:
-        project_dir = artifacts_dir / "generated_project"
+        # Try to get project_dir from state (new structure)
+        state_file = artifacts_dir / "state.json"
+        if state_file.exists():
+            with open(state_file) as f:
+                state_data = json_module.load(f)
+            proj_dir = state_data.get("project_dir")
+            if proj_dir:
+                project_dir = Path(proj_dir)
+            else:
+                project_dir = artifacts_dir / "generated_project"
+        else:
+            project_dir = artifacts_dir / "generated_project"
 
     project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2085,23 +2148,39 @@ def iterate(
         coding-factory iterate 2026-01-05-151822 "Improve CSS with animations"
         coding-factory iterate 2026-01-05-151822 "Add search functionality" -y
     """
-    config = get_config()
-    artifacts_dir = Path(config.pipeline.artifacts_dir) / run_id
-    project_dir = artifacts_dir / "generated_project"
+    import json as json_module
 
-    if not project_dir.exists():
-        rprint(f"[red]No generated_project found for run {run_id}[/red]")
-        rprint(f"[dim]Run 'coding-factory extract {run_id}' first if needed[/dim]")
+    config = get_config()
+    artifacts_dir = _find_run_artifacts(run_id, config)
+
+    if not artifacts_dir:
+        rprint(f"[red]Run not found: {run_id}[/red]")
         raise typer.Exit(1)
 
-    # Load previous state to get context
+    # Load previous state to get context and project_dir
     state_file = artifacts_dir / "state.json"
     original_feature = "Unknown"
+    project_dir = None
+
     if state_file.exists():
-        import json
         with open(state_file) as f:
-            state = json.load(f)
+            state = json_module.load(f)
             original_feature = state.get("feature_description", "")
+            # New structure: project_dir is in state
+            proj_dir = state.get("project_dir")
+            if proj_dir and Path(proj_dir).exists():
+                project_dir = Path(proj_dir)
+
+    # Legacy fallback: generated_project inside artifacts
+    if not project_dir:
+        legacy_dir = artifacts_dir / "generated_project"
+        if legacy_dir.exists():
+            project_dir = legacy_dir
+
+    if not project_dir or not project_dir.exists():
+        rprint(f"[red]No project found for run {run_id}[/red]")
+        rprint(f"[dim]Run 'coding-factory extract {run_id}' first if needed[/dim]")
+        raise typer.Exit(1)
 
     rprint(f"[bold blue]Coding Factory - Iteration Mode[/bold blue]")
     rprint()
@@ -2139,7 +2218,11 @@ def iterate(
             rprint("[bold green]Iteration completed![/bold green]")
             rprint()
             rprint(f"[dim]New run ID: {state.run_id}[/dim]")
-            rprint(f"[dim]Project: {Path(config.pipeline.artifacts_dir) / state.run_id / 'generated_project'}[/dim]")
+            # Show project location (new structure vs legacy)
+            if hasattr(state, 'project_dir') and state.project_dir:
+                rprint(f"[dim]Project: {state.project_dir}[/dim]")
+            else:
+                rprint(f"[dim]Project: {Path(config.pipeline.artifacts_dir) / state.run_id / 'generated_project'}[/dim]")
         elif state.status.value == "paused":
             rprint()
             rprint("[yellow]Iteration paused. Resume with:[/yellow]")

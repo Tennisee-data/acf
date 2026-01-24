@@ -90,19 +90,30 @@ pip install "acf[full]"
 ```bash
 acf run "Build a REST API with FastAPI"
 acf run "Add user authentication" --repo ./my-project
+acf run "Build an API" --output ./my-api    # Custom output directory
 ```
 
-Each run creates an artifacts directory with a timestamp-based ID:
+Each run creates a project directory with code at the root and history in `.acf/`:
 ```
-artifacts/
-└── 2026-01-24-130821/        # Run ID (YYYY-MM-DD-HHMMSS)
-    ├── state.json            # Pipeline state
-    ├── feature_spec.json     # Parsed requirements
-    ├── design_proposal.json  # Architecture design
-    ├── change_set.json       # Generated code changes
-    ├── diff.patch            # Git-style patch
-    ├── generated_project/    # Full project code
-    └── *.md                  # Reports (test, verification, etc.)
+2026-01-24-130821/                # Project directory (run ID by default)
+├── app/                          # Your generated code at root level
+│   └── main.py
+├── requirements.txt
+├── .gitignore                    # Includes .acf/
+└── .acf/                         # Pipeline history (gitignored)
+    └── runs/
+        └── 2026-01-24-130821/    # Run artifacts
+            ├── state.json        # Pipeline state
+            ├── feature_spec.json # Parsed requirements
+            ├── design_proposal.json
+            ├── change_set.json
+            ├── diff.patch
+            └── *.md              # Reports
+```
+
+Use `--output` to specify a custom project directory:
+```bash
+acf run "Build REST API" --output ./my-project
 ```
 
 ### CLI Reference
@@ -114,6 +125,7 @@ acf run "feature" [OPTIONS]
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--repo PATH` | `-r` | Target repository (default: current directory) |
+| `--output PATH` | `-o` | Output directory for generated project (default: ./{run_id}/) |
 | `--profile NAME` | `-p` | Configuration profile (default: dev) |
 | `--auto-approve` | `-y` | Skip all approval prompts |
 | `--resume ID` | | Resume a paused run by ID |

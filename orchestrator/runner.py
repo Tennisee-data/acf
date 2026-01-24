@@ -821,24 +821,45 @@ class PipelineRunner:
 
         return context
 
-    def create_run(self, feature: str, repo_path: Path | None = None) -> PipelineState:
+    def create_run(
+        self,
+        feature: str,
+        repo_path: Path | None = None,
+        output_dir: Path | None = None,
+    ) -> PipelineState:
         """Create a new pipeline run.
 
         Args:
             feature: Feature description
-            repo_path: Path to target repository
+            repo_path: Path to target repository (for iterating on existing code)
+            output_dir: Output directory for the project (default: ./{run_id}/)
 
         Returns:
             New PipelineState
         """
         run_id = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        run_dir = self.artifacts_dir / run_id
-        run_dir.mkdir(parents=True, exist_ok=True)
+
+        # Project directory: where the actual code lives
+        if output_dir:
+            project_dir = Path(output_dir).resolve()
+        else:
+            # Default: create folder with run_id as name
+            project_dir = Path.cwd() / run_id
+
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        # Artifacts directory: .acf/runs/{run_id}/ inside the project
+        acf_dir = project_dir / ".acf" / "runs" / run_id
+        acf_dir.mkdir(parents=True, exist_ok=True)
+
+        # Auto-add .acf/ to .gitignore
+        self._ensure_gitignore(project_dir)
 
         state = PipelineState(
             run_id=run_id,
             feature_description=feature,
-            artifacts_dir=str(run_dir),
+            project_dir=str(project_dir),
+            artifacts_dir=str(acf_dir),
             config_snapshot={
                 "llm_backend": self.config.llm.backend,
                 "model_general": self.config.llm.model_general,
@@ -851,22 +872,76 @@ class PipelineRunner:
             self._run_complexity_triage(feature)
 
         # Save initial spec
-        spec_path = run_dir / "spec.json"
+        spec_path = acf_dir / "spec.json"
         spec_data = {
             "run_id": run_id,
             "feature": feature,
+            "project_dir": str(project_dir),
             "repo_path": str(repo_path) if repo_path else str(Path.cwd()),
             "started_at": datetime.now().isoformat(),
         }
         spec_path.write_text(json.dumps(spec_data, indent=2))
         state.artifacts["initial_spec"] = str(spec_path)
 
+        self.console.print(f"[dim]Project: {project_dir}[/dim]")
+        self.console.print(f"[dim]History: {acf_dir}[/dim]")
+
         return state
+
+    def _ensure_gitignore(self, project_dir: Path) -> None:
+        """Ensure .acf/ is in .gitignore."""
+        gitignore_path = project_dir / ".gitignore"
+
+        acf_entry = ".acf/"
+
+        if gitignore_path.exists():
+            content = gitignore_path.read_text()
+            if acf_entry not in content:
+                # Append to existing .gitignore
+                with open(gitignore_path, "a") as f:
+                    f.write(f"\n# ACF pipeline history\n{acf_entry}\n")
+        else:
+            # Create new .gitignore
+            gitignore_path.write_text(f"# ACF pipeline history\n{acf_entry}\n")
+
+    def _load_run_state(self, run_id: str) -> PipelineState | None:
+        """Load state for a run by ID.
+
+        Searches both new structure (.acf/runs/) and legacy artifacts/ directory.
+
+        Args:
+            run_id: Run ID to load
+
+        Returns:
+            PipelineState if found, None otherwise
+        """
+        # Try legacy artifacts directory first
+        run_dir = self.artifacts_dir / run_id
+        if run_dir.exists():
+            state_file = run_dir / "state.json"
+            if state_file.exists():
+                with open(state_file) as f:
+                    data = json.load(f)
+                    return PipelineState(**data)
+
+        # Try finding in project directories by scanning for .acf/runs/{run_id}/
+        # This is a fallback for new structure where artifacts_dir isn't the lookup key
+        cwd = Path.cwd()
+        for proj_dir in cwd.iterdir():
+            if proj_dir.is_dir():
+                state_file = proj_dir / ".acf" / "runs" / run_id / "state.json"
+                if state_file.exists():
+                    with open(state_file) as f:
+                        data = json.load(f)
+                        return PipelineState(**data)
+
+        return None
 
     def run(
         self,
         feature: str,
         repo_path: Path | None = None,
+        output_dir: Path | None = None,
         resume_run_id: str | None = None,
         dry_run: bool = False,
         iteration_context: dict | None = None,
@@ -889,7 +964,8 @@ class PipelineRunner:
 
         Args:
             feature: Feature description
-            repo_path: Target repository path
+            repo_path: Target repository path (for iterating on existing code)
+            output_dir: Output directory for project (default: ./{run_id}/)
             resume_run_id: Run ID to resume (if resuming)
             dry_run: If True, don't execute actions
             iteration_context: Context for iteration mode (base_run_id, original_feature, improvement_request)
@@ -932,7 +1008,7 @@ class PipelineRunner:
             state = state_machine.state
             self.console.print(f"[green]Resuming run {resume_run_id}[/green]")
         else:
-            state = self.create_run(feature, repo_path)
+            state = self.create_run(feature, repo_path, output_dir)
             state_machine = StateMachine(state, Path(state.artifacts_dir))
 
             # Store iteration context if provided
@@ -1089,32 +1165,41 @@ class PipelineRunner:
 
         return StateMachine.load_state(run_dir)
 
-    def _get_repo_path(self, run_dir: Path) -> Path:
+    def _get_repo_path(self, run_dir: Path, state: PipelineState | None = None) -> Path:
         """Get the correct repo path for post-generation agents.
 
         Priority:
-        1. generated_project/ directory (for generated code)
-        2. repo_path from spec.json (for iteration on existing code)
-        3. Current working directory (fallback)
+        1. state.project_dir (new structure)
+        2. project_dir from spec.json
+        3. generated_project/ directory (legacy)
+        4. repo_path from spec.json (for iteration on existing code)
+        5. Current working directory (fallback)
 
         Args:
             run_dir: The pipeline run artifacts directory
+            state: Optional pipeline state with project_dir
 
         Returns:
             Path to the code to analyze/review
         """
-        # First check for generated project
-        generated_project = run_dir / "generated_project"
-        if generated_project.exists():
-            return generated_project
+        # First check state for project_dir (new structure)
+        if state and hasattr(state, 'project_dir') and state.project_dir:
+            return Path(state.project_dir)
 
-        # Then check spec for original repo path
+        # Then check spec for project_dir
         spec_file = run_dir / "spec.json"
         if spec_file.exists():
             with open(spec_file) as f:
                 spec_data = json.load(f)
+                if "project_dir" in spec_data:
+                    return Path(spec_data["project_dir"])
                 if "repo_path" in spec_data:
                     return Path(spec_data["repo_path"])
+
+        # Legacy: check for generated_project subfolder
+        generated_project = run_dir / "generated_project"
+        if generated_project.exists():
+            return generated_project
 
         # Fallback to cwd
         return Path.cwd()
@@ -2651,8 +2736,8 @@ Full design proposal requires LLM connection.
             self.console.print("[dim]No code files to validate[/dim]")
             return True
 
-        # Get correct repo path for validation (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path for validation (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         # Initialize validator and fix loop state
         validator = CodeValidator(repo_path=repo_path)
@@ -2911,16 +2996,22 @@ Full design proposal requires LLM connection.
         Args:
             run_dir: Run artifacts directory
             raw_changes: List of file changes with path and new_code
-            state: Pipeline state (to check for iteration context)
+            state: Pipeline state (to check for iteration context and project_dir)
 
         Returns:
-            Path to the generated project directory
+            Path to the project directory where code was written
         """
         import shutil
 
-        project_dir = run_dir / "generated_project"
-        project_dir.mkdir(exist_ok=True)
-        logger.info(f"EXTRACT: Created project_dir: {project_dir}")
+        # Use state.project_dir (new structure) or fall back to legacy generated_project/
+        if state and hasattr(state, 'project_dir') and state.project_dir:
+            project_dir = Path(state.project_dir)
+        else:
+            # Legacy: create generated_project inside artifacts
+            project_dir = run_dir / "generated_project"
+
+        project_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"EXTRACT: Using project_dir: {project_dir}")
         logger.info(f"EXTRACT: raw_changes count: {len(raw_changes)}")
 
         files_created = 0
@@ -2930,7 +3021,13 @@ Full design proposal requires LLM connection.
         if state and state.iteration_context:
             base_run_id = state.iteration_context.get("base_run_id")
             if base_run_id:
-                base_project = self.artifacts_dir / base_run_id / "generated_project"
+                # Try new structure first, then legacy
+                base_state = self._load_run_state(base_run_id)
+                if base_state and hasattr(base_state, 'project_dir') and base_state.project_dir:
+                    base_project = Path(base_state.project_dir)
+                else:
+                    base_project = self.artifacts_dir / base_run_id / "generated_project"
+
                 if base_project.exists():
                     self.console.print(f"[cyan]Copying base project from {base_run_id}...[/cyan]")
                     # Copy all files from base project
@@ -3413,8 +3510,8 @@ Full design proposal requires LLM connection.
         """Run tests and quality checks using TestAgent."""
         run_dir = Path(state.artifacts_dir)
 
-        # Get correct repo path (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         # Check if we have LLM available
         if self.llm is None:
@@ -3566,8 +3663,8 @@ Full design proposal requires LLM connection.
             self.console.print("[yellow]CoverageAgent not available[/yellow]")
             return True, None  # Skip gracefully
 
-        # Get correct repo path (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         # Get list of changed files from implementation
         changed_files = []
@@ -3667,8 +3764,8 @@ Full design proposal requires LLM connection.
             self.console.print("[yellow]SecretsScanAgent not available[/yellow]")
             return True, None  # Skip gracefully
 
-        # Get correct repo path (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         self.console.print(f"[bold]Secrets Scan Agent:[/bold] Scanning {repo_path} for hardcoded secrets...")
 
@@ -3740,8 +3837,8 @@ Full design proposal requires LLM connection.
             self.console.print("[yellow]DependencyAuditAgent not available[/yellow]")
             return True, None  # Skip gracefully
 
-        # Get correct repo path (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         self.console.print(
             f"[bold]Dependency Audit Agent:[/bold] Scanning {repo_path} for vulnerabilities..."
@@ -4172,8 +4269,8 @@ To enable Docker validation, add a Dockerfile to your project root.
             self.console.print("[yellow]ObservabilityAgent not available[/yellow]")
             return True, None  # Skip gracefully
 
-        # Get correct repo path (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         self.console.print(
             f"[bold]Observability Agent:[/bold] Injecting observability into {repo_path}..."
@@ -4257,8 +4354,8 @@ To enable Docker validation, add a Dockerfile to your project root.
             self.console.print("[yellow]ConfigAgent not available[/yellow]")
             return True, None  # Skip gracefully
 
-        # Get correct repo path (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         self.console.print(
             f"[bold]Config Agent:[/bold] Enforcing 12-factor config in {repo_path}..."
@@ -4339,8 +4436,8 @@ To enable Docker validation, add a Dockerfile to your project root.
             self.console.print("[yellow]DocAgent not available[/yellow]")
             return True, None  # Skip gracefully
 
-        # Get correct repo path (generated_project or original repo)
-        repo_path = self._get_repo_path(run_dir)
+        # Get correct repo path (project_dir or legacy generated_project)
+        repo_path = self._get_repo_path(run_dir, state)
 
         self.console.print(
             f"[bold]Doc Agent:[/bold] Generating documentation for {repo_path}..."
@@ -5351,40 +5448,71 @@ needs_review - Manual verification required.
     def list_runs(self) -> list[dict[str, Any]]:
         """List all pipeline runs.
 
+        Scans both legacy artifacts/ directory and new .acf/runs/ structure.
+
         Returns:
             List of run summaries
         """
         runs = []
-        if not self.artifacts_dir.exists():
-            return runs
+        seen_run_ids = set()
 
-        for run_dir in sorted(self.artifacts_dir.iterdir(), reverse=True):
-            if not run_dir.is_dir():
-                continue
-
-            state_file = run_dir / "state.json"
-            if state_file.exists():
-                with open(state_file) as f:
-                    state_data = json.load(f)
+        def add_run_from_state(state_file: Path) -> None:
+            """Add a run from a state.json file."""
+            with open(state_file) as f:
+                state_data = json.load(f)
+            run_id = state_data.get("run_id")
+            if run_id and run_id not in seen_run_ids:
+                seen_run_ids.add(run_id)
                 runs.append({
-                    "run_id": state_data.get("run_id"),
+                    "run_id": run_id,
                     "feature": state_data.get("feature_description", "")[:50],
                     "status": state_data.get("status"),
                     "current_stage": state_data.get("current_stage"),
                     "created_at": state_data.get("created_at"),
+                    "project_dir": state_data.get("project_dir"),
                 })
-            else:
-                # Legacy run without state.json
-                spec_file = run_dir / "spec.json"
-                if spec_file.exists():
-                    with open(spec_file) as f:
-                        spec_data = json.load(f)
-                    runs.append({
-                        "run_id": spec_data.get("run_id", run_dir.name),
-                        "feature": spec_data.get("feature", "")[:50],
-                        "status": "unknown",
-                        "current_stage": "unknown",
-                        "created_at": spec_data.get("started_at"),
-                    })
 
+        # 1. Scan legacy artifacts/ directory
+        if self.artifacts_dir.exists():
+            for run_dir in self.artifacts_dir.iterdir():
+                if not run_dir.is_dir():
+                    continue
+
+                state_file = run_dir / "state.json"
+                if state_file.exists():
+                    add_run_from_state(state_file)
+                else:
+                    # Legacy run without state.json
+                    spec_file = run_dir / "spec.json"
+                    if spec_file.exists():
+                        with open(spec_file) as f:
+                            spec_data = json.load(f)
+                        run_id = spec_data.get("run_id", run_dir.name)
+                        if run_id not in seen_run_ids:
+                            seen_run_ids.add(run_id)
+                            runs.append({
+                                "run_id": run_id,
+                                "feature": spec_data.get("feature", "")[:50],
+                                "status": "unknown",
+                                "current_stage": "unknown",
+                                "created_at": spec_data.get("started_at"),
+                            })
+
+        # 2. Scan new structure: look for .acf/runs/ in current directory
+        cwd = Path.cwd()
+        for proj_dir in cwd.iterdir():
+            if not proj_dir.is_dir():
+                continue
+
+            acf_runs_dir = proj_dir / ".acf" / "runs"
+            if acf_runs_dir.exists():
+                for run_dir in acf_runs_dir.iterdir():
+                    if not run_dir.is_dir():
+                        continue
+                    state_file = run_dir / "state.json"
+                    if state_file.exists():
+                        add_run_from_state(state_file)
+
+        # Sort by run_id (timestamp) descending
+        runs.sort(key=lambda r: r.get("run_id", ""), reverse=True)
         return runs

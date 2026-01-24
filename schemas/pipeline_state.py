@@ -134,8 +134,9 @@ class PipelineState(BaseModel):
         description="Results by stage name",
     )
 
-    # Artifact paths
-    artifacts_dir: str = Field(..., description="Directory for this run's artifacts")
+    # Project and artifact paths
+    project_dir: str = Field(..., description="Root directory of the generated project (where code lives)")
+    artifacts_dir: str = Field(..., description="Directory for this run's artifacts (.acf/runs/{run_id})")
     artifacts: dict[str, str] = Field(
         default_factory=dict,
         description="Map of artifact name to path",
