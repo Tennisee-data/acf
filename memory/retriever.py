@@ -9,7 +9,11 @@ Supports hybrid search combining semantic and lexical (BM25) retrieval.
 import logging
 from dataclasses import dataclass
 
-from rag.embeddings import OllamaEmbeddings
+try:
+    from rag.embeddings import OllamaEmbeddings
+except ImportError:
+    OllamaEmbeddings = None  # Semantic features not installed
+
 from schemas.memory import (
     ErrorPattern,
     ExtractedPattern,
@@ -50,7 +54,7 @@ class MemoryRetriever:
     def __init__(
         self,
         store: MemoryStore,
-        embeddings: OllamaEmbeddings | None = None,
+        embeddings: "OllamaEmbeddings | None" = None,
         embedding_model: str = "nomic-embed-text",
         config: RetrieverConfig | None = None,
     ):
@@ -63,7 +67,12 @@ class MemoryRetriever:
             config: Retriever configuration
         """
         self.store = store
-        self.embeddings = embeddings or OllamaEmbeddings(model=embedding_model)
+        if embeddings:
+            self.embeddings = embeddings
+        elif OllamaEmbeddings:
+            self.embeddings = OllamaEmbeddings(model=embedding_model)
+        else:
+            self.embeddings = None
         self.config = config or RetrieverConfig()
 
     def get_historical_context(

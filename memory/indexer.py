@@ -15,7 +15,11 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from rag.embeddings import OllamaEmbeddings
+try:
+    from rag.embeddings import OllamaEmbeddings
+except ImportError:
+    OllamaEmbeddings = None  # Semantic features not installed
+
 from schemas.memory import (
     ErrorPattern,
     MemoryType,
@@ -43,7 +47,7 @@ class RunIndexer:
     def __init__(
         self,
         store: MemoryStore,
-        embeddings: OllamaEmbeddings | None = None,
+        embeddings: "OllamaEmbeddings | None" = None,
         embedding_model: str = "nomic-embed-text",
     ):
         """Initialize run indexer.
@@ -54,7 +58,12 @@ class RunIndexer:
             embedding_model: Model name for embeddings
         """
         self.store = store
-        self.embeddings = embeddings or OllamaEmbeddings(model=embedding_model)
+        if embeddings:
+            self.embeddings = embeddings
+        elif OllamaEmbeddings:
+            self.embeddings = OllamaEmbeddings(model=embedding_model)
+        else:
+            self.embeddings = None
 
     def _map_run_status_to_outcome(self, status: RunStatus) -> RunOutcome:
         """Map pipeline run status to memory outcome.

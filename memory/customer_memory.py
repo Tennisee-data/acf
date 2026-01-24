@@ -124,16 +124,19 @@ class CustomerMemoryManager:
         """
         try:
             from memory.indexer import RunIndexer
-            from rag.embeddings import OllamaEmbeddings
 
             store = self._get_store(customer_id)
 
             # Try to use embeddings, fall back to lexical-only if not available
+            embeddings = None
             try:
+                from rag.embeddings import OllamaEmbeddings
                 embeddings = OllamaEmbeddings()
+            except ImportError:
+                # Semantic features not installed, use lexical only
+                pass
             except Exception as e:
-                logger.warning(f"Embeddings not available, using lexical only: {e}")
-                embeddings = None
+                logger.debug(f"Embeddings not available, using lexical only: {e}")
 
             indexer = RunIndexer(store=store, embeddings=embeddings)
             count = indexer.index_run(run_dir, outcome=outcome)

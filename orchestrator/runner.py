@@ -320,6 +320,13 @@ class PipelineRunner:
                 mode = "semantic" if self.rag_budget_agent.is_semantic else "keyword"
             self.console.print(f"[dim]RAG initialized: {source_count} sources, {mode} retrieval[/dim]")
 
+        except ImportError as e:
+            # Silently skip if semantic features not installed (expected for free version)
+            if "rag.embeddings" in str(e) or "sentence_transformers" in str(e):
+                logger.debug("Semantic RAG not available (install acf[semantic] for this feature)")
+            else:
+                self.console.print(f"[yellow]Warning: Could not initialize RAG budget agent: {e}[/yellow]")
+            self.rag_budget_agent = None
         except Exception as e:
             self.console.print(f"[yellow]Warning: Could not initialize RAG budget agent: {e}[/yellow]")
             self.rag_budget_agent = None

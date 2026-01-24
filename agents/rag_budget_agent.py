@@ -39,7 +39,7 @@ def _check_semantic_available() -> bool:
             _SEMANTIC_AVAILABLE = True
             logger.info("Semantic retrieval available (sentence-transformers installed)")
         except (ImportError, Exception) as e:
-            logger.info("Semantic retrieval not available, using keyword matching: %s", e)
+            logger.debug("Semantic retrieval not available, using keyword matching: %s", e)
             _SEMANTIC_AVAILABLE = False
     return _SEMANTIC_AVAILABLE
 

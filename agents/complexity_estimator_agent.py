@@ -123,6 +123,12 @@ Output ONLY valid JSON:
             try:
                 from memory.store import MemoryStore
                 self._memory_store = MemoryStore()
+            except ImportError as e:
+                # Silently skip if semantic features not installed
+                if "rag.embeddings" in str(e) or "sentence_transformers" in str(e):
+                    logger.debug("Memory store requires semantic features (install acf[semantic])")
+                else:
+                    logger.warning("Failed to initialize memory store: %s", e)
             except Exception as e:
                 logger.warning("Failed to initialize memory store: %s", e)
         return self._memory_store
