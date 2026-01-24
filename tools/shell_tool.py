@@ -202,11 +202,24 @@ class ShellTool(BaseTool):
 
         return self._run(args)
 
-    def _mypy(self, path: str = ".", strict: bool = False) -> ToolResult:
-        """Run mypy type checker."""
+    def _mypy(
+        self,
+        path: str = ".",
+        strict: bool = False,
+        ignore_missing_imports: bool = True,
+    ) -> ToolResult:
+        """Run mypy type checker.
+
+        Args:
+            path: Path to check
+            strict: Enable strict mode
+            ignore_missing_imports: Ignore missing third-party imports (default True)
+        """
         args = ["mypy", path]
         if strict:
             args.append("--strict")
+        if ignore_missing_imports:
+            args.append("--ignore-missing-imports")
         return self._run(args)
 
     def _docker_build(

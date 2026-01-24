@@ -269,7 +269,12 @@ class TestAgent(BaseAgent):
 
     def _run_mypy(self) -> list[TypeIssue]:
         """Run mypy type checker and parse results."""
-        result = self.shell.execute("mypy", path=".")
+        # First, try to install dependencies if requirements.txt exists
+        self._ensure_dependencies_installed()
+
+        # Run mypy with --ignore-missing-imports to avoid false positives
+        # from third-party packages that aren't installed or lack stubs
+        result = self.shell.execute("mypy", path=".", ignore_missing_imports=True)
         type_issues = []
 
         if result.output:
@@ -292,6 +297,19 @@ class TestAgent(BaseAgent):
                 )
 
         return type_issues
+
+    def _ensure_dependencies_installed(self) -> None:
+        """Try to install project dependencies before running type checks."""
+        # Check for requirements.txt
+        requirements_file = self.repo_path / "requirements.txt"
+        if requirements_file.exists():
+            self.shell.execute("pip", command="install -q -r requirements.txt")
+            return
+
+        # Check for pyproject.toml with dependencies
+        pyproject_file = self.repo_path / "pyproject.toml"
+        if pyproject_file.exists():
+            self.shell.execute("pip", command="install -q -e .")
 
     def _get_coverage(self) -> CoverageInfo | None:
         """Get coverage information if available."""
