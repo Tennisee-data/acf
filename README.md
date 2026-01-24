@@ -92,10 +92,94 @@ acf run "Build a REST API with FastAPI"
 acf run "Add user authentication" --repo ./my-project
 ```
 
-### With Pipeline Options
+Each run creates an artifacts directory with a timestamp-based ID:
+```
+artifacts/
+└── 2026-01-24-130821/        # Run ID (YYYY-MM-DD-HHMMSS)
+    ├── state.json            # Pipeline state
+    ├── feature_spec.json     # Parsed requirements
+    ├── design_proposal.json  # Architecture design
+    ├── change_set.json       # Generated code changes
+    ├── diff.patch            # Git-style patch
+    ├── generated_project/    # Full project code
+    └── *.md                  # Reports (test, verification, etc.)
+```
+
+### CLI Reference
+
 ```bash
-acf run "Add payments" --code-review --secrets-scan --coverage
-acf run "Build feature" --decompose --api-contract
+acf run "feature" [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--repo PATH` | `-r` | Target repository (default: current directory) |
+| `--profile NAME` | `-p` | Configuration profile (default: dev) |
+| `--auto-approve` | `-y` | Skip all approval prompts |
+| `--resume ID` | | Resume a paused run by ID |
+| `--dry-run` | | Show what would be done without executing |
+
+**Pipeline Stages:**
+
+| Option | Description |
+|--------|-------------|
+| `--decompose` | Break feature into sub-tasks before design |
+| `--api-contract` | Generate OpenAPI spec before implementation |
+| `--coverage` | Enforce test coverage (default: 80%) |
+| `--coverage-threshold N` | Set coverage threshold (e.g., 90) |
+| `--secrets-scan` | Detect hardcoded secrets, auto-fix with env vars |
+| `--dependency-audit` | Scan for CVEs and outdated packages |
+| `--rollback-strategy` | Generate CI/CD rollback and canary templates |
+| `--observability` | Inject logging, metrics, tracing scaffolding |
+| `--config` | Enforce 12-factor config layout |
+| `--docs` | Generate documentation and ADRs |
+| `--code-review` | Senior engineer code review |
+| `--policy` | Enforce policy rules before verification |
+| `--pr-package` | Build PR with changelog and spec links |
+
+**Issue Integration:**
+
+| Option | Description |
+|--------|-------------|
+| `--jira PROJ-123` | Fetch requirements from JIRA issue |
+| `--issue URL` | Fetch from GitHub/JIRA issue URL |
+
+### Examples
+
+```bash
+# Basic run with auto-approval
+acf run "Add login rate-limit" --auto-approve
+
+# Full pipeline with all quality checks
+acf run "Build payment API" --api-contract --coverage --secrets-scan --code-review
+
+# Resume a paused run
+acf run "Add feature" --resume 2026-01-24-130821
+
+# Iterate on existing project
+acf iterate 2026-01-24-130821 "Add error handling"
+```
+
+### Other Commands
+
+```bash
+# List all runs
+acf list
+
+# Show run details
+acf show 2026-01-24-130821
+
+# Extract generated code to a directory
+acf extract 2026-01-24-130821 --output ./my-project
+
+# Create git scaffold with proper structure
+acf scaffold 2026-01-24-130821
+
+# Generate tests for existing code
+acf generate-tests 2026-01-24-130821
+
+# Deploy generated project
+acf deploy 2026-01-24-130821 --version v1.0.0
 ```
 
 ### Extension Marketplace
