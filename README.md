@@ -135,7 +135,7 @@ acf run "feature" [OPTIONS]
 | `--resume ID` | | Resume a paused run by ID |
 | `--dry-run` | | Show what would be done without executing |
 
-**Pipeline Stages:**
+**Pipeline Stages (built-in):**
 
 | Option | Description |
 |--------|-------------|
@@ -147,11 +147,16 @@ acf run "feature" [OPTIONS]
 | `--dependency-audit` | Scan for CVEs and outdated packages |
 | `--rollback-strategy` | Generate CI/CD rollback and canary templates |
 | `--observability` | Inject logging, metrics, tracing scaffolding |
-| `--config` | Enforce 12-factor config layout |
 | `--docs` | Generate documentation and ADRs |
 | `--code-review` | Senior engineer code review |
 | `--policy` | Enforce policy rules before verification |
 | `--pr-package` | Build PR with changelog and spec links |
+
+**Marketplace Extensions (install separately):**
+
+| Option | Description |
+|--------|-------------|
+| `--config` | Enforce 12-factor config layout |
 
 **Issue Integration:**
 
@@ -249,9 +254,9 @@ The ACF Marketplace lets you create and sell extensions. Earn money by building 
 
 | Type | Purpose | Price Range |
 |------|---------|-------------|
-| **Agents** | Add pipeline stages (security scanning, code review, etc.) | $5-$49 |
-| **Profiles** | Framework templates (Vue, Go, Flutter, etc.) | $5-$15 |
-| **RAG Kits** | Custom code retrieval systems | $10-$39 |
+| **Agents** | Add pipeline stages (security scanning, code review, etc.) | Free - $49 |
+| **Profiles** | Framework templates (Vue, Go, Flutter, etc.) | Free - $15 |
+| **RAG Kits** | Custom code retrieval systems | Free - $39 |
 
 ### Official Free Extensions
 
@@ -323,13 +328,46 @@ cp -r my-agent ~/.coding-factory/extensions/agents/
 acf run "Build an API" --auto-approve
 ```
 
-5. **Submit to marketplace**
+**[See full guide with profile and RAG kit examples →](docs/MARKETPLACE_GUIDE.md)**
+
+### Submit to the Marketplace
+
+Share your extensions with the community and earn from your work.
+
+**1. Create an account**
+
+Sign up at https://agentcodefactory.com/signup.html
+
+**2. Verify your email**
+
+Check your inbox and click the verification link. This unlocks API access and marketplace submissions.
+
+Didn't receive it? Log in and go to Settings to resend.
+
+**3. Create an API key**
+
+Go to Settings → Platform API Keys and click "Create Key". Copy it immediately—it's only shown once.
+
 ```bash
-tar -czvf my-agent-1.0.0.tar.gz .
-acf marketplace submit ./my-agent-1.0.0.tar.gz --name my-agent --version 1.0.0 --type agent
+export ACF_MARKETPLACE_API_KEY=acf_sk_xxxx...
 ```
 
-**[See full guide with profile and RAG kit examples →](docs/MARKETPLACE_GUIDE.md)**
+**4. Build your extension**
+
+Create a directory with:
+```
+my-extension/
+├── manifest.yaml    # Required: name, version, type, description
+├── agent.py         # Your code
+└── README.md        # Documentation
+```
+
+**5. Submit for review**
+
+```bash
+acf marketplace submit ./my-extension --price 15.00
+# Use --price 0 for free extensions
+```
 
 ### Trust Badges
 
