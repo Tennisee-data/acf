@@ -1,12 +1,12 @@
 # ACF - AgentCodeFactory Local Edition
 
-100% local AI-powered code generation pipeline. No cloud required.
+AI-powered code generation pipeline. Run locally or use cloud APIs.
 
 > **[Read the Manifesto](MANIFESTO.md)** — Why we believe local AI is the future of secure, private code generation.
 
 ## Features
 
-- **Fully Offline**: Runs entirely on your machine with Ollama or LM Studio
+- **Flexible Backends**: Ollama, LM Studio (local) or OpenAI, Anthropic (cloud)
 - **7-Stage Pipeline**: SPEC → CONTEXT → DESIGN → IMPLEMENTATION → TESTING → REVIEW → DONE
 - **Multi-Model Routing**: Automatically routes tasks to appropriate model sizes
 - **Extension Marketplace**: Install premium agents, profiles, and RAG kits
@@ -21,14 +21,18 @@ pip install -e .
 # Or with all optional features
 pip install -e ".[full]"
 
-# Run (requires Ollama running locally)
+# Run (requires a configured LLM backend - see below)
 acf run "Add user authentication with JWT"
 ```
 
 ## Requirements
 
 - Python 3.11+
-- [Ollama](https://ollama.ai) or [LM Studio](https://lmstudio.ai)
+- One of the following LLM backends:
+  - [Ollama](https://ollama.ai) - Local, free, recommended
+  - [LM Studio](https://lmstudio.ai) - Local, free, GUI
+  - [OpenAI API](https://platform.openai.com) - Cloud, paid
+  - [Anthropic API](https://console.anthropic.com) - Cloud, paid
 
 ### LLM Backend Setup
 
