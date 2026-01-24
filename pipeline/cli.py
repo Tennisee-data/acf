@@ -239,7 +239,13 @@ def run(
         # Show final status
         if state.status.value == "completed":
             rprint()
-            rprint("[bold green]Run completed successfully![/bold green]")
+            # Check for verification warnings
+            verification_warnings = state.metadata.get("verification_warnings", {})
+            if verification_warnings:
+                rprint("[bold yellow]Run completed with warnings![/bold yellow]")
+                rprint("[dim]Some issues were overridden by user approval. Consider running another iteration.[/dim]")
+            else:
+                rprint("[bold green]Run completed successfully![/bold green]")
         elif state.status.value == "paused":
             rprint()
             rprint("[yellow]Run paused. Resume with:[/yellow]")

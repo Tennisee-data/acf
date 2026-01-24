@@ -1210,7 +1210,38 @@ rules:
     def _print_completion_summary(self, state: PipelineState) -> None:
         """Print pipeline completion summary."""
         self.console.print()
-        self.console.print("[bold green]Pipeline completed successfully![/bold green]")
+
+        # Check for verification warnings
+        verification_warnings = state.metadata.get("verification_warnings", {})
+        has_warnings = bool(verification_warnings)
+
+        if has_warnings:
+            self.console.print("[bold yellow]Pipeline completed with warnings![/bold yellow]")
+            self.console.print()
+
+            # Show warning details
+            if verification_warnings.get("unmet_requirements"):
+                unmet = verification_warnings["unmet_requirements"]
+                self.console.print(f"[yellow]Unmet Requirements ({len(unmet)}):[/yellow]")
+                for req in unmet[:5]:
+                    req_id = req.get("id", "REQ-???")
+                    desc = req.get("description", "")[:60]
+                    self.console.print(f"  - {req_id}: {desc}...")
+
+            if verification_warnings.get("type_errors", 0) > 0:
+                self.console.print(f"[yellow]Type Errors: {verification_warnings['type_errors']}[/yellow]")
+
+            if verification_warnings.get("blocking_issues"):
+                self.console.print("[yellow]Blocking Issues:[/yellow]")
+                for issue in verification_warnings["blocking_issues"][:3]:
+                    self.console.print(f"  - {issue}")
+
+            self.console.print()
+            self.console.print("[dim]These issues were overridden by user approval.[/dim]")
+            self.console.print("[dim]Consider running another iteration to fix them.[/dim]")
+        else:
+            self.console.print("[bold green]Pipeline completed successfully![/bold green]")
+
         self.console.print()
         self.console.print(f"Run ID: {state.run_id}")
         self.console.print(f"Artifacts: {state.artifacts_dir}")
@@ -4913,9 +4944,27 @@ needs_review - Manual verification required.
 
             if not fix_success:
                 self.console.print("[red]Requirements fix loop failed - some requirements remain unmet[/red]")
-                # Don't fail the build, but the recommendation will be "reject"
+                # Store unmet requirements as warnings for the completion summary
+                state.metadata["verification_warnings"] = {
+                    "unmet_requirements": unmet_requirements,
+                    "recommendation": "reject",
+                    "message": f"{len(unmet_requirements)} requirement(s) remain unmet after fix attempts",
+                }
             else:
                 self.console.print("[green]All requirements now verified[/green]")
+        else:
+            # Check if there were other issues (type errors, test failures) even if no unmet requirements
+            test_report = data.get("test_report", {})
+            type_errors = test_report.get("type_issues", [])
+            blocking_issues = test_report.get("blocking_issues", [])
+
+            if type_errors or blocking_issues or recommendation == "reject":
+                state.metadata["verification_warnings"] = {
+                    "type_errors": len(type_errors) if type_errors else 0,
+                    "blocking_issues": blocking_issues,
+                    "recommendation": recommendation,
+                    "message": data.get("recommendation_rationale", "Issues found during verification"),
+                }
 
         return True, None
 
