@@ -15,7 +15,6 @@ from agents import (
     AgentInput,
     APIContractAgent,
     CodeReviewAgent,
-    ConfigAgent,
     ContextAgent,
     CoverageAgent,
     DependencyAuditAgent,
@@ -31,6 +30,12 @@ from agents import (
     TestAgent,
     VerifyAgent,
 )
+
+# Premium agents (available on ACF Marketplace)
+try:
+    from agents.config_agent import ConfigAgent
+except ImportError:
+    ConfigAgent = None
 from agents.complexity_estimator_agent import ComplexityEstimatorAgent
 from agents.decomposition_agent import DecompositionAgent
 from agents.runtime_decision_agent import RuntimeDecisionAgent, decide_runtime
@@ -455,7 +460,7 @@ class PipelineRunner:
             self.secrets_scan_agent = SecretsScanAgent(llm=self.llm)
             self.dependency_audit_agent = DependencyAuditAgent(llm=self.llm)
             self.observability_agent = ObservabilityAgent(llm=self.llm)
-            self.config_agent = ConfigAgent(llm=self.llm)
+            self.config_agent = ConfigAgent(llm=self.llm) if ConfigAgent else None
             self.doc_agent = DocAgent(llm=self.llm)
             self.code_review_agent = CodeReviewAgent(llm=self.llm)
             self.context_agent: ContextAgent | None = None  # Initialized per-run with repo path
@@ -1566,9 +1571,12 @@ rules:
         - Using request.json() before signature verification
         - Missing constant-time comparison for HMAC
         """
-        from agents.invariants_verifier_agent import InvariantsVerifierAgent
-
-        verifier = InvariantsVerifierAgent()
+        try:
+            from agents.invariants_verifier_agent import InvariantsVerifierAgent
+            verifier = InvariantsVerifierAgent()
+        except ImportError:
+            self.console.print("[dim]InvariantsVerifierAgent not available (premium)[/dim]")
+            return
 
         # Combine all generated code
         all_code = ""
@@ -2615,9 +2623,12 @@ Full design proposal requires LLM connection.
             timeout_seconds=fix_config.timeout_seconds,
         )
 
-        # Initialize invariants verifier
-        from agents.invariants_verifier_agent import InvariantsVerifierAgent
-        invariants_verifier = InvariantsVerifierAgent()
+        # Initialize invariants verifier (premium agent)
+        try:
+            from agents.invariants_verifier_agent import InvariantsVerifierAgent
+            invariants_verifier = InvariantsVerifierAgent()
+        except ImportError:
+            invariants_verifier = None
         previous_violations: set[str] = set()  # Track for no-progress detection
 
         # Initial validation (syntax + invariants)
@@ -2625,10 +2636,16 @@ Full design proposal requires LLM connection.
         self._send_ws_update("fix_loop", status="validating", message="Validating generated code...")
         validation = validator.validate_files(code_files)
 
-        # Run invariant verification
+        # Run invariant verification (if available)
         all_code = "\n".join(f"# File: {p}\n{c}" for p, c in code_files.items())
-        invariant_result = invariants_verifier.verify(all_code, context=state.feature_description)
-        invariant_errors = self._format_invariant_violations(invariant_result)
+        if invariants_verifier:
+            invariant_result = invariants_verifier.verify(all_code, context=state.feature_description)
+            invariant_errors = self._format_invariant_violations(invariant_result)
+        else:
+            # Create a dummy result when verifier is not available
+            from types import SimpleNamespace
+            invariant_result = SimpleNamespace(has_errors=False, violations=[])
+            invariant_errors = []
 
         if validation.valid and not invariant_result.has_errors:
             self.console.print("[green]Code validation passed[/green]")
@@ -2771,10 +2788,15 @@ Full design proposal requires LLM connection.
             # Re-validate syntax
             validation = validator.validate_files(code_files)
 
-            # Re-verify invariants
+            # Re-verify invariants (if available)
             all_code = "\n".join(f"# File: {p}\n{c}" for p, c in code_files.items())
-            invariant_result = invariants_verifier.verify(all_code, context=state.feature_description)
-            invariant_errors = self._format_invariant_violations(invariant_result)
+            if invariants_verifier:
+                invariant_result = invariants_verifier.verify(all_code, context=state.feature_description)
+                invariant_errors = self._format_invariant_violations(invariant_result)
+            else:
+                from types import SimpleNamespace
+                invariant_result = SimpleNamespace(has_errors=False, violations=[])
+                invariant_errors = []
 
             # Check for no-progress on invariants
             current_violations = {v.pattern_message for v in invariant_result.violations if v.severity == "error"}
