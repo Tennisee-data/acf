@@ -15,11 +15,11 @@
 ## Quick Start
 
 ```bash
-# Install
-pip install acf
+# Install from source (if you cloned the repo)
+pip install -e .
 
 # Or with all optional features
-pip install acf[full]
+pip install -e ".[full]"
 
 # Run (requires Ollama running locally)
 acf run "Add user authentication with JWT"
@@ -33,31 +33,36 @@ acf run "Add user authentication with JWT"
 
 ## Installation
 
-### From PyPI
+### From PyPI (when published)
 ```bash
 pip install acf
 ```
 
-### From Source
+### From Source (local development)
 ```bash
 git clone https://github.com/Tennisee-data/acf.git
 cd acf
 pip install -e .
 ```
 
+> **Note**: If you cloned the repo, you must use `pip install -e .` from the project directory. Running `pip install acf` will attempt to install from PyPI, not your local copy.
+
 ### Optional Dependencies
+
+From source:
 ```bash
-# Semantic RAG (better code retrieval)
-pip install acf[semantic]
+pip install -e ".[semantic]"   # Semantic RAG (better code retrieval)
+pip install -e ".[openai]"     # OpenAI backend
+pip install -e ".[anthropic]"  # Anthropic backend
+pip install -e ".[full]"       # Everything
+```
 
-# OpenAI backend
-pip install acf[openai]
-
-# Anthropic backend
-pip install acf[anthropic]
-
-# Everything
-pip install acf[full]
+From PyPI (when published):
+```bash
+pip install "acf[semantic]"
+pip install "acf[openai]"
+pip install "acf[anthropic]"
+pip install "acf[full]"
 ```
 
 ## Usage
