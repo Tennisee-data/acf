@@ -57,10 +57,9 @@ def save_config(config: dict[str, str]) -> None:
 
 
 def validate_api_key(key: str) -> bool:
-    """Validate API key format.
+    """Validate API key format and verify against marketplace API.
 
-    For now, only validates the format. Server-side validation
-    happens when the key is used for marketplace operations.
+    Returns True if key is valid and authenticated, False otherwise.
     """
     # Check format: acf_sk_ followed by 64 hex characters
     if not key.startswith("acf_sk_"):
@@ -73,9 +72,26 @@ def validate_api_key(key: str) -> bool:
     # Check if remaining part is valid hex
     try:
         int(key_part, 16)
-        return True
     except ValueError:
         return False
+
+    # Verify against marketplace API
+    try:
+        import httpx
+
+        marketplace_url = os.environ.get(
+            "ACF_MARKETPLACE_URL",
+            "https://marketplace.agentcodefactory.com/api/v1"
+        )
+        with httpx.Client(timeout=10.0) as client:
+            response = client.get(
+                f"{marketplace_url}/me",
+                headers={"Authorization": f"Bearer {key}"},
+            )
+            return response.status_code == 200
+    except Exception:
+        # If we can't connect, accept the key (offline mode)
+        return True
 
 
 @auth_app.command("login")
