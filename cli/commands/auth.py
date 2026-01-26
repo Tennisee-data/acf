@@ -92,9 +92,9 @@ def login(
     """Configure API key for marketplace access.
 
     To get your API key:
-      1. Sign in at https://marketplace.agentcodefactory.com
-      2. Go to Account → API Keys
-      3. Create a new key and copy it
+      1. Sign in at https://agentcodefactory.com/login.html
+      2. Go to https://agentcodefactory.com/settings.html
+      3. Create a new API key and copy it
 
     Examples:
         acf auth login --key acf_sk_abc123...
@@ -104,16 +104,16 @@ def login(
     if not key:
         console.print("[bold]Configure Marketplace API Key[/bold]\n")
         console.print("To get your API key:")
-        console.print("  1. Sign in at: https://marketplace.agentcodefactory.com")
-        console.print("  2. Go to Account → API Keys")
-        console.print("  3. Create a new key and copy it\n")
+        console.print("  1. Sign in at: https://agentcodefactory.com/login.html")
+        console.print("  2. Go to: https://agentcodefactory.com/settings.html")
+        console.print("  3. Create a new API key and copy it\n")
         key = typer.prompt("Enter your API key")
 
     # Validate format
     if not key.startswith("acf_sk_"):
         console.print("[red]Invalid key format.[/red]")
         console.print("API keys should start with 'acf_sk_'")
-        console.print("Create a new key at: https://marketplace.agentcodefactory.com")
+        console.print("Create a new key at: https://agentcodefactory.com/settings.html")
         raise typer.Exit(1)
 
     # Test the key
@@ -121,7 +121,7 @@ def login(
     if not validate_api_key(key):
         console.print("[red]API key validation failed.[/red]")
         console.print("The key may be invalid or expired.")
-        console.print("Create a new key at: https://marketplace.agentcodefactory.com")
+        console.print("Create a new key at: https://agentcodefactory.com/settings.html")
         raise typer.Exit(1)
 
     # Save to config
@@ -180,7 +180,7 @@ def status() -> None:
     else:
         console.print("[yellow]Not authenticated[/yellow]")
         console.print("\nTo configure your API key:")
-        console.print("  1. Sign in at: https://marketplace.agentcodefactory.com")
-        console.print("  2. Go to Account → API Keys")
-        console.print("  3. Create a new key and copy it")
+        console.print("  1. Sign in at: https://agentcodefactory.com/login.html")
+        console.print("  2. Go to: https://agentcodefactory.com/settings.html")
+        console.print("  3. Create a new API key and copy it")
         console.print("  4. Run: acf auth login --key YOUR_KEY")
