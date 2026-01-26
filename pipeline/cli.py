@@ -22,6 +22,7 @@ from scaffolding import ProjectGenerator, TEMPLATES
 try:
     from cli.commands.marketplace import marketplace_app
     from cli.commands.extensions import extensions_app
+    from cli.commands.auth import auth_app
     EXTENSIONS_CLI_AVAILABLE = True
 except ImportError:
     EXTENSIONS_CLI_AVAILABLE = False
@@ -37,6 +38,7 @@ console = Console()
 if EXTENSIONS_CLI_AVAILABLE:
     app.add_typer(marketplace_app, name="marketplace")
     app.add_typer(extensions_app, name="extensions")
+    app.add_typer(auth_app, name="auth")
 
 
 @app.command()
