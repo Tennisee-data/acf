@@ -116,11 +116,32 @@ class MarketplaceClient:
         self.marketplace_url = marketplace_url or self.DEFAULT_MARKETPLACE_URL
         self.api_key = api_key or os.environ.get("ACF_MARKETPLACE_API_KEY")
 
+        # Also try loading from config file if not in environment
+        if not self.api_key:
+            self.api_key = self._load_api_key_from_config()
+
         if not HTTPX_AVAILABLE:
             raise MarketplaceError(
                 "httpx is required for marketplace access. "
                 "Install with: pip install httpx"
             )
+
+    def _load_api_key_from_config(self) -> str | None:
+        """Load API key from ~/.coding-factory/config.env file."""
+        config_file = Path.home() / ".coding-factory" / "config.env"
+        if not config_file.exists():
+            return None
+
+        try:
+            for line in config_file.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    if key.strip() == "ACF_MARKETPLACE_API_KEY":
+                        return value.strip()
+        except Exception:
+            pass
+        return None
 
     def _request(
         self,
@@ -145,10 +166,25 @@ class MarketplaceClient:
                 return response.json()
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401:
-                raise MarketplaceError("Authentication required. Please log in.")
+                if not self.api_key:
+                    raise MarketplaceError(
+                        "API key required for paid extensions.\n\n"
+                        "To configure your API key:\n"
+                        "  1. Create a key at: https://marketplace.agentcodefactory.com\n"
+                        "  2. Run: acf auth login --key YOUR_KEY\n"
+                        "     Or: export ACF_MARKETPLACE_API_KEY=YOUR_KEY\n"
+                        "  3. Then retry this command"
+                    )
+                else:
+                    raise MarketplaceError(
+                        "Invalid or expired API key.\n\n"
+                        "Create a new key at: https://marketplace.agentcodefactory.com\n"
+                        "Then run: acf auth login --key YOUR_NEW_KEY"
+                    )
             elif e.response.status_code == 402:
                 raise MarketplaceError(
-                    "Payment required. Please purchase this extension first."
+                    "Payment required. Please purchase this extension first.\n\n"
+                    "Visit: https://marketplace.agentcodefactory.com"
                 )
             elif e.response.status_code == 404:
                 raise MarketplaceError("Extension not found.")
