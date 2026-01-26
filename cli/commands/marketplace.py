@@ -20,11 +20,23 @@ marketplace_app = typer.Typer(
 
 
 def get_marketplace_client():
-    """Get marketplace client with optional authentication."""
+    """Get marketplace client with optional authentication.
+
+    Reads API key from ~/.coding-factory/config.env
+    or ACF_MARKETPLACE_API_KEY environment variable.
+    """
+    import os
     try:
         from extensions import MarketplaceClient
+        from cli.commands.auth import load_config
 
-        return MarketplaceClient()
+        # Check environment variable first, then config file
+        api_key = os.environ.get("ACF_MARKETPLACE_API_KEY")
+        if not api_key:
+            config = load_config()
+            api_key = config.get("ACF_MARKETPLACE_API_KEY")
+
+        return MarketplaceClient(api_key=api_key)
     except Exception as e:
         console.print(f"[yellow]Marketplace unavailable: {e}[/yellow]")
         raise typer.Exit(1)
@@ -221,7 +233,9 @@ def install(
 ) -> None:
     """Install an extension from the marketplace.
 
-    For paid extensions, you'll be prompted to purchase first.
+    For paid extensions, you must first:
+    1. Purchase at https://marketplace.agentcodefactory.com
+    2. Configure your API key with: acf auth login --key YOUR_KEY
 
     Examples:
         acf marketplace install secrets-scan
@@ -238,22 +252,19 @@ def install(
         ext = client.get_extension(name)
 
         if not ext.is_free:
-            console.print(f"[yellow]Extension '{name}' costs ${ext.price_usd:.2f}[/yellow]")
-            if not typer.confirm("Would you like to purchase it?"):
-                raise typer.Exit(0)
-
-            # Initiate purchase
-            try:
-                result = client.purchase(name)
-                if "checkout_url" in result:
-                    console.print(f"Complete purchase at: {result['checkout_url']}")
-                    console.print("Run this command again after purchasing.")
-                    raise typer.Exit(0)
-            except MarketplaceError as e:
-                console.print(f"[red]Purchase failed: {e}[/red]")
+            # Paid extension - check authentication first
+            if not client.api_key:
+                console.print(f"[yellow]Extension '{name}' costs ${ext.price_usd:.2f}[/yellow]")
+                console.print("\n[bold]To install paid extensions:[/bold]")
+                console.print("1. Purchase at: https://marketplace.agentcodefactory.com")
+                console.print("2. Configure API key: acf auth login --key YOUR_KEY")
+                console.print("3. Then run this command again")
                 raise typer.Exit(1)
 
-        # Install
+            # Has API key - proceed with install (will verify purchase)
+            console.print(f"Checking purchase status for {name}...")
+
+        # Install (will verify purchase for paid extensions)
         console.print(f"Installing {name}...")
         manifest = installer.install_from_marketplace(name, force=force)
 
@@ -264,10 +275,22 @@ def install(
             console.print(f"[dim]Hook: {manifest.hook_point.value}[/dim]")
 
     except InstallError as e:
-        console.print(f"[red]Installation failed: {e}[/red]")
+        error_msg = str(e)
+        if "Payment required" in error_msg or "402" in error_msg:
+            console.print(f"[yellow]Extension '{name}' not yet purchased.[/yellow]")
+            console.print(f"\nPrice: ${ext.price_usd:.2f}")
+            console.print("Purchase at: https://marketplace.agentcodefactory.com")
+        else:
+            console.print(f"[red]Installation failed: {e}[/red]")
         raise typer.Exit(1)
     except MarketplaceError as e:
-        console.print(f"[red]Marketplace error: {e}[/red]")
+        error_msg = str(e)
+        if "Payment required" in error_msg:
+            console.print(f"[yellow]Extension '{name}' not yet purchased.[/yellow]")
+            console.print(f"\nPrice: ${ext.price_usd:.2f}")
+            console.print("Purchase at: https://marketplace.agentcodefactory.com")
+        else:
+            console.print(f"[red]Marketplace error: {e}[/red]")
         raise typer.Exit(1)
 
 
@@ -277,9 +300,13 @@ def purchase(
 ) -> None:
     """Purchase a paid extension.
 
+    Opens the marketplace in your browser to complete the purchase.
+
     Example:
         acf marketplace purchase semantic-rag
     """
+    import webbrowser
+
     client = get_marketplace_client()
 
     try:
@@ -289,23 +316,14 @@ def purchase(
             console.print(f"[green]'{name}' is free! Install with: acf marketplace install {name}[/green]")
             return
 
-        console.print(f"[bold]Purchasing {name}[/bold]")
+        url = f"https://marketplace.agentcodefactory.com/extensions/{name}"
+        console.print(f"[bold]Opening marketplace to purchase {name}...[/bold]")
         console.print(f"Price: ${ext.price_usd:.2f}")
-
-        if not typer.confirm("Proceed with purchase?"):
-            raise typer.Exit(0)
-
-        result = client.purchase(name)
-
-        if "checkout_url" in result:
-            console.print(f"\n[bold]Complete your purchase:[/bold]")
-            console.print(result["checkout_url"])
-        else:
-            console.print(f"[green]✓ Purchase successful![/green]")
-            console.print(f"Install with: acf marketplace install {name}")
+        webbrowser.open(url)
+        console.print(f"\nAfter purchasing, install with: acf marketplace install {name}")
 
     except Exception as e:
-        console.print(f"[red]Purchase failed: {e}[/red]")
+        console.print(f"[red]Failed to get extension info: {e}[/red]")
         raise typer.Exit(1)
 
 

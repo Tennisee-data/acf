@@ -407,8 +407,9 @@ class ExtensionInstaller:
             except MarketplaceError as e:
                 if "Payment required" in str(e):
                     raise InstallError(
-                        f"Extension '{name}' costs ${ext.price_usd:.2f}. "
-                        f"Purchase with: acf marketplace purchase {name}"
+                        f"Extension '{name}' requires purchase.\n"
+                        f"Price: ${ext.price_usd:.2f}\n"
+                        f"Purchase at: https://marketplace.agentcodefactory.com"
                     )
                 raise
         else:
