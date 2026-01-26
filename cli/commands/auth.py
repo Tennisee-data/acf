@@ -91,7 +91,10 @@ def login(
 ) -> None:
     """Configure API key for marketplace access.
 
-    Your API key can be created at https://marketplace.agentcodefactory.com
+    To get your API key:
+      1. Sign in at https://marketplace.agentcodefactory.com
+      2. Go to Account → API Keys
+      3. Create a new key and copy it
 
     Examples:
         acf auth login --key acf_sk_abc123...
@@ -100,7 +103,10 @@ def login(
     # Prompt for key if not provided
     if not key:
         console.print("[bold]Configure Marketplace API Key[/bold]\n")
-        console.print("Get your API key from: https://marketplace.agentcodefactory.com\n")
+        console.print("To get your API key:")
+        console.print("  1. Sign in at: https://marketplace.agentcodefactory.com")
+        console.print("  2. Go to Account → API Keys")
+        console.print("  3. Create a new key and copy it\n")
         key = typer.prompt("Enter your API key")
 
     # Validate format
@@ -174,5 +180,7 @@ def status() -> None:
     else:
         console.print("[yellow]Not authenticated[/yellow]")
         console.print("\nTo configure your API key:")
-        console.print("  acf auth login --key YOUR_KEY")
-        console.print("\nGet your key at: https://marketplace.agentcodefactory.com")
+        console.print("  1. Sign in at: https://marketplace.agentcodefactory.com")
+        console.print("  2. Go to Account → API Keys")
+        console.print("  3. Create a new key and copy it")
+        console.print("  4. Run: acf auth login --key YOUR_KEY")
