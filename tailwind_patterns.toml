@@ -1,0 +1,38 @@
+# Tailwind CSS Patterns Configuration
+# =====================================
+# Define Tailwind CSS conventions for frontend generation.
+# These patterns guide the code generator to use consistent styling.
+
+[components]
+# Map component types to Tailwind class strings
+#
+# Examples:
+# button_primary = "bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-lg transition"
+# button_secondary = "bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-4 py-2 rounded-lg transition"
+# input_field = "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+# card = "bg-white rounded-xl shadow-md p-6"
+
+[layout]
+# Layout patterns
+#
+# Examples:
+# container = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+# flex_center = "flex items-center justify-center"
+# grid_responsive = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+
+[typography]
+# Typography patterns
+#
+# Examples:
+# heading_1 = "text-4xl font-bold text-gray-900"
+# heading_2 = "text-2xl font-semibold text-gray-800"
+# body = "text-base text-gray-600"
+# link = "text-blue-500 hover:text-blue-600 underline"
+
+[states]
+# State patterns
+#
+# Examples:
+# error = "text-red-500 bg-red-50 border-red-200"
+# success = "text-green-500 bg-green-50 border-green-200"
+# warning = "text-yellow-600 bg-yellow-50 border-yellow-200"

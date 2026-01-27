@@ -242,6 +242,40 @@ model_premium = "qwen2.5-coder:32b"  # Complex tasks
 
 > **Common error:** `404 Not Found` means the model in config.toml is not installed. Run `ollama list` to see available models.
 
+### Optional Configuration Files
+
+These files are optional but provide additional customization when populated:
+
+| File | Purpose |
+|------|---------|
+| `context_libraries.cfg` | Allowlist of libraries to include in context analysis |
+| `safety_patterns.toml` | Custom security patterns for code scanning |
+| `tailwind_patterns.toml` | Tailwind CSS patterns for frontend generation |
+
+Empty template files are included in the repo. Populate them as needed:
+
+**context_libraries.cfg** - List libraries to always include in context:
+```
+# One library per line
+requests
+fastapi
+sqlalchemy
+```
+
+**safety_patterns.toml** - Define security rules:
+```toml
+[patterns]
+# Add custom regex patterns to flag
+api_key_in_code = "api[_-]?key\\s*=\\s*['\"][^'\"]+['\"]"
+```
+
+**tailwind_patterns.toml** - Define Tailwind conventions:
+```toml
+[components]
+# Map component types to Tailwind classes
+button_primary = "bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+```
+
 ---
 
 ## Marketplace: Build & Sell Extensions

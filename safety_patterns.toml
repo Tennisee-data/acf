@@ -1,0 +1,28 @@
+# Safety Patterns Configuration
+# ==============================
+# Define custom security patterns for code scanning.
+# These patterns are checked during the security scan stage.
+
+[patterns]
+# Add regex patterns to detect security issues
+# Format: name = "regex_pattern"
+#
+# Examples:
+# hardcoded_password = "password\\s*=\\s*['\"][^'\"]+['\"]"
+# api_key_in_code = "api[_-]?key\\s*=\\s*['\"][^'\"]+['\"]"
+# private_key = "-----BEGIN (RSA |EC )?PRIVATE KEY-----"
+
+[severity]
+# Map pattern names to severity levels: critical, high, medium, low
+#
+# Examples:
+# hardcoded_password = "critical"
+# api_key_in_code = "high"
+
+[ignore]
+# Patterns to ignore (false positives)
+# Format: list of regex patterns
+#
+# Examples:
+# files = ["*_test.py", "tests/*"]
+# patterns = ["example_api_key", "test_password"]
