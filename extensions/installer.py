@@ -534,6 +534,7 @@ class ExtensionInstaller:
             ExtensionType.AGENT: "agents",
             ExtensionType.PROFILE: "profiles",
             ExtensionType.RAG: "rag",
+            ExtensionType.SKILL: "skills",
         }
         return self.extensions_dir / type_dirs[ext_type] / name
 
@@ -588,7 +589,7 @@ class ExtensionInstaller:
         """
         installed: list[ExtensionManifest] = []
 
-        for type_dir in ["agents", "profiles", "rag"]:
+        for type_dir in ["agents", "profiles", "rag", "skills"]:
             type_path = self.extensions_dir / type_dir
             if not type_path.exists():
                 continue
@@ -715,6 +716,13 @@ class ExtensionInstaller:
         elif ext_type == ExtensionType.RAG:
             manifest_data["retriever_class"] = f"{self._to_class_name(name)}Retriever"
             self._create_rag_scaffold(ext_dir, manifest_data)
+        elif ext_type == ExtensionType.SKILL:
+            manifest_data["skill_class"] = f"{self._to_class_name(name)}Skill"
+            manifest_data["input_type"] = "files"
+            manifest_data["output_type"] = "modified_files"
+            manifest_data["file_patterns"] = ["*.py"]
+            manifest_data["supports_dry_run"] = True
+            self._create_skill_scaffold(ext_dir, manifest_data)
 
         # Write manifest
         import yaml
@@ -873,6 +881,69 @@ class {class_name}:
 '''
         (ext_dir / "retriever.py").write_text(retriever_code)
         (ext_dir / "requirements.txt").write_text("# Add your dependencies here\n")
+
+    def _create_skill_scaffold(
+        self, ext_dir: Path, manifest_data: dict[str, Any]
+    ) -> None:
+        """Create scaffold files for a skill extension."""
+        class_name = manifest_data["skill_class"]
+        skill_code = f'''"""Custom skill extension."""
+
+from pathlib import Path
+from typing import Any
+
+from skills.base import BaseSkill, FileChange, SkillInput, SkillOutput
+
+
+class {class_name}(BaseSkill):
+    """Custom skill for code transformation.
+
+    Processes files matching the configured file_patterns.
+    """
+
+    def run(self, input_data: SkillInput) -> SkillOutput:
+        """Execute the skill on target files.
+
+        Args:
+            input_data: Skill input with target paths and config.
+
+        Returns:
+            SkillOutput with changes and summary.
+        """
+        changes: list[FileChange] = []
+
+        for path in input_data.target_paths:
+            content = path.read_text()
+            modified = self.transform(content, path)
+
+            if modified != content:
+                changes.append(FileChange(
+                    path=path,
+                    original_content=content,
+                    modified_content=modified,
+                    change_type="modified",
+                ))
+
+        return SkillOutput(
+            success=True,
+            changes=changes,
+            summary=f"Transformed {{len(changes)}} files",
+        )
+
+    def transform(self, content: str, path: Path) -> str:
+        """Transform a single file's content.
+
+        Args:
+            content: File content to transform.
+            path: Path to the file.
+
+        Returns:
+            Transformed content.
+        """
+        # Your transformation logic here
+        return content
+'''
+        (ext_dir / "skill.py").write_text(skill_code)
 
     def package_extension(self, ext_dir: Path, output_path: Path | None = None) -> Path:
         """Package an extension into a tarball for submission.

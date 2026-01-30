@@ -3,10 +3,11 @@
 This module provides the extension loading, management, and marketplace
 integration for the ACF extension ecosystem.
 
-Extensions are organized into three types:
+Extensions are organized into four types:
 - agents: Custom pipeline agents that hook into specific stages
 - profiles: Technology-specific profiles with guidance and dependencies
 - rag: Custom RAG retrieval strategies
+- skills: Standalone code transformations (run via acf skill)
 
 Extensions are stored in ~/.coding-factory/extensions/ by default.
 """

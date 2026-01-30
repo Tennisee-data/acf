@@ -39,10 +39,12 @@ app.add_typer(config_app, name="config")
 from cli.commands.extensions import extensions_app
 from cli.commands.marketplace import marketplace_app
 from cli.commands.auth import auth_app
+from cli.commands.skills import skills_app
 
 app.add_typer(extensions_app, name="extensions")
 app.add_typer(marketplace_app, name="marketplace")
 app.add_typer(auth_app, name="auth")
+app.add_typer(skills_app, name="skill")
 
 
 @app.command()

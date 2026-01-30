@@ -39,7 +39,7 @@ def list_extensions(
         None,
         "--type",
         "-t",
-        help="Filter by type (agent, profile, rag)",
+        help="Filter by type (agent, profile, rag, skill)",
     ),
 ) -> None:
     """List all installed extensions.
@@ -59,7 +59,7 @@ def list_extensions(
             filter_type = ExtensionType(ext_type)
             installed = [e for e in installed if e.type == filter_type]
         except ValueError:
-            console.print(f"[red]Invalid type: {ext_type}. Use: agent, profile, or rag[/red]")
+            console.print(f"[red]Invalid type: {ext_type}. Use: agent, profile, rag, or skill[/red]")
             raise typer.Exit(1)
 
     if not installed:
@@ -155,6 +155,19 @@ def show(
 
     if manifest.retriever_class:
         console.print(f"  Retriever Class: {manifest.retriever_class}")
+
+    if manifest.skill_class:
+        console.print(f"  Skill Class: {manifest.skill_class}")
+    if manifest.input_type:
+        console.print(f"  Input Type: {manifest.input_type}")
+    if manifest.output_type:
+        console.print(f"  Output Type: {manifest.output_type}")
+    if manifest.file_patterns:
+        console.print(f"  File Patterns: {', '.join(manifest.file_patterns)}")
+    if manifest.supports_dry_run:
+        console.print(f"  Supports Dry Run: Yes")
+    if manifest.chain:
+        console.print(f"  Chain Steps: {len(manifest.chain)}")
 
     if manifest.requires:
         console.print(f"\n[bold]Dependencies[/bold]")
@@ -326,7 +339,7 @@ def create(
         "agent",
         "--type",
         "-t",
-        help="Extension type (agent, profile, rag)",
+        help="Extension type (agent, profile, rag, skill)",
     ),
     output: Optional[Path] = typer.Option(
         None,
@@ -348,7 +361,7 @@ def create(
     try:
         type_enum = ExtensionType(ext_type)
     except ValueError:
-        console.print(f"[red]Invalid type: {ext_type}. Use: agent, profile, or rag[/red]")
+        console.print(f"[red]Invalid type: {ext_type}. Use: agent, profile, rag, or skill[/red]")
         raise typer.Exit(1)
 
     installer = ExtensionInstaller()
@@ -476,4 +489,5 @@ def init() -> None:
     console.print("  ~/.coding-factory/extensions/")
     console.print("  ├── agents/      # Agent extensions")
     console.print("  ├── profiles/    # Profile extensions")
-    console.print("  └── rag/         # RAG retriever extensions")
+    console.print("  ├── rag/         # RAG retriever extensions")
+    console.print("  └── skills/      # Skill extensions")

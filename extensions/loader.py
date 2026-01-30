@@ -35,6 +35,7 @@ class LoadedExtension:
     agent_class: Type | None = None
     profile_class: Type | None = None
     retriever_class: Type | None = None
+    skill_class: Type | None = None
     enabled: bool = True
 
 
@@ -45,6 +46,7 @@ class ExtensionRegistry:
     agents: dict[str, LoadedExtension] = field(default_factory=dict)
     profiles: dict[str, LoadedExtension] = field(default_factory=dict)
     rag: dict[str, LoadedExtension] = field(default_factory=dict)
+    skills: dict[str, LoadedExtension] = field(default_factory=dict)
 
     # Hook point index for fast lookup
     hooks: dict[HookPoint, list[LoadedExtension]] = field(default_factory=dict)
@@ -69,11 +71,15 @@ class ExtensionLoader:
     │   └── <extension-name>/
     │       ├── manifest.yaml
     │       └── profile.py
-    └── rag/
+    ├── rag/
+    │   └── <extension-name>/
+    │       ├── manifest.yaml
+    │       ├── retriever.py
+    │       └── requirements.txt
+    └── skills/
         └── <extension-name>/
             ├── manifest.yaml
-            ├── retriever.py
-            └── requirements.txt
+            └── skill.py
 
     Example:
         >>> loader = ExtensionLoader(Path.home() / ".coding-factory/extensions")
@@ -118,7 +124,7 @@ class ExtensionLoader:
         if not self.extensions_dir.exists():
             return loaded
 
-        for ext_type in ["agents", "profiles", "rag"]:
+        for ext_type in ["agents", "profiles", "rag", "skills"]:
             type_dir = self.extensions_dir / ext_type
             if not type_dir.exists():
                 continue
@@ -183,6 +189,12 @@ class ExtensionLoader:
             extension.module, extension.retriever_class = self._load_retriever_class(
                 ext_dir, manifest
             )
+        elif manifest.type == ExtensionType.SKILL:
+            if manifest.skill_class:
+                extension.module, extension.skill_class = self._load_skill_class(
+                    ext_dir, manifest
+                )
+            # Chained skills (with chain: field) don't need a Python module
 
         return extension
 
@@ -251,6 +263,25 @@ class ExtensionLoader:
 
         return module, getattr(module, manifest.retriever_class)
 
+    def _load_skill_class(
+        self, ext_dir: Path, manifest: ExtensionManifest
+    ) -> tuple[Any, Type]:
+        """Load a skill class from extension directory."""
+        skill_file = ext_dir / "skill.py"
+        if not skill_file.exists():
+            raise ExtensionLoadError(f"Skill file not found: {skill_file}")
+
+        module = self._load_module(
+            f"acf_ext_skill_{manifest.name.replace('-', '_')}", skill_file
+        )
+
+        if not hasattr(module, manifest.skill_class):
+            raise ExtensionLoadError(
+                f"Skill class '{manifest.skill_class}' not found in {skill_file}"
+            )
+
+        return module, getattr(module, manifest.skill_class)
+
     def _load_module(self, module_name: str, file_path: Path) -> Any:
         """Dynamically load a Python module from file.
 
@@ -288,6 +319,9 @@ class ExtensionLoader:
         elif manifest.type == ExtensionType.RAG:
             self.registry.rag[manifest.name] = extension
 
+        elif manifest.type == ExtensionType.SKILL:
+            self.registry.skills[manifest.name] = extension
+
     def get_agent(self, name: str) -> Type | None:
         """Get an agent class by name.
 
@@ -323,6 +357,18 @@ class ExtensionLoader:
         """
         ext = self.registry.rag.get(name)
         return ext.retriever_class if ext else None
+
+    def get_skill(self, name: str) -> Type | None:
+        """Get a skill class by name.
+
+        Args:
+            name: Extension name.
+
+        Returns:
+            Skill class or None if not found.
+        """
+        ext = self.registry.skills.get(name)
+        return ext.skill_class if ext else None
 
     def get_manifest(self, name: str) -> ExtensionManifest | None:
         """Get manifest for an extension.
@@ -370,6 +416,8 @@ class ExtensionLoader:
             return [e.manifest for e in self.registry.profiles.values()]
         elif ext_type == ExtensionType.RAG:
             return [e.manifest for e in self.registry.rag.values()]
+        elif ext_type == ExtensionType.SKILL:
+            return [e.manifest for e in self.registry.skills.values()]
         else:
             return list(self._manifests.values())
 
@@ -407,6 +455,7 @@ class ExtensionLoader:
             self.registry.agents,
             self.registry.profiles,
             self.registry.rag,
+            self.registry.skills,
         ]:
             if name in registry:
                 registry[name].enabled = True
@@ -426,6 +475,7 @@ class ExtensionLoader:
             self.registry.agents,
             self.registry.profiles,
             self.registry.rag,
+            self.registry.skills,
         ]:
             if name in registry:
                 registry[name].enabled = False
@@ -455,5 +505,5 @@ class ExtensionLoader:
 
     def ensure_extensions_dir(self) -> None:
         """Create extensions directory structure if it doesn't exist."""
-        for subdir in ["agents", "profiles", "rag"]:
+        for subdir in ["agents", "profiles", "rag", "skills"]:
             (self.extensions_dir / subdir).mkdir(parents=True, exist_ok=True)

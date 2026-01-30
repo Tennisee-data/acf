@@ -218,6 +218,72 @@ acf extensions list
 acf extensions enable secrets-scan
 ```
 
+### Skills (Standalone Code Transformations)
+
+Skills are standalone, composable code transformations that run directly on files
+without requiring a full pipeline execution.
+
+```bash
+# Run a skill on a file or directory
+acf skill run add-error-handling ./src/main.py
+acf skill run add-type-hints ./src --dry-run
+
+# Run a chained skill (multi-step transformation)
+acf skill chain production-ready ./src
+
+# List and inspect installed skills
+acf skill list
+acf skill show add-error-handling
+```
+
+**Creating a skill:**
+
+1. Create a directory with `manifest.yaml` and `skill.py`
+2. Install: `cp -r my-skill ~/.coding-factory/extensions/skills/`
+
+```yaml
+# manifest.yaml
+name: my-skill
+version: 1.0.0
+type: skill
+author: Your Name
+description: What it does
+license: free
+skill_class: MySkill
+input_type: files
+output_type: modified_files
+file_patterns: ["*.py"]
+supports_dry_run: true
+```
+
+```python
+# skill.py
+from skills.base import BaseSkill, FileChange, SkillInput, SkillOutput
+
+class MySkill(BaseSkill):
+    def run(self, input_data: SkillInput) -> SkillOutput:
+        changes = []
+        for path in input_data.target_paths:
+            content = path.read_text()
+            modified = self.transform(content)
+            if modified != content:
+                changes.append(FileChange(
+                    path=path,
+                    original_content=content,
+                    modified_content=modified,
+                    change_type="modified",
+                ))
+        return SkillOutput(
+            success=True,
+            changes=changes,
+            summary=f"Transformed {len(changes)} files",
+        )
+
+    def transform(self, content: str) -> str:
+        # Your transformation logic
+        return content
+```
+
 ## Configuration
 
 Create `config.toml` in your project. **Make sure models match what you have installed** (`ollama list`):
@@ -291,6 +357,7 @@ The ACF Marketplace lets you create and sell extensions. Earn money by building 
 | **Agents** | Add pipeline stages (security scanning, code review, etc.) | Free - $49 |
 | **Profiles** | Framework templates (Vue, Go, Flutter, etc.) | Free - $15 |
 | **RAG Kits** | Custom code retrieval systems | Free - $39 |
+| **Skills** | Standalone code transformations (error handling, tests, etc.) | Free - $49 |
 
 ### Official Free Extensions
 
@@ -440,7 +507,8 @@ acf marketplace submit ./my-extension --price 15.00
 ├── extensions/          # Installed extensions
 │   ├── agents/
 │   ├── profiles/
-│   └── rag/
+│   ├── rag/
+│   └── skills/
 └── memory/              # Learning from past runs
 ```
 

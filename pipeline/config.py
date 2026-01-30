@@ -216,7 +216,7 @@ class IntegrationsConfig:
 class ExtensionsConfig:
     """Extensions configuration for ACF Local Edition.
 
-    Extensions are loadable agents, profiles, and RAG retrievers from
+    Extensions are loadable agents, profiles, RAG retrievers, and skills from
     the marketplace or local development.
     """
 
@@ -230,6 +230,7 @@ class ExtensionsConfig:
     agents: list[str] = field(default_factory=list)  # Agent extension names
     profiles: list[str] = field(default_factory=list)  # Profile extension names
     rag_kits: list[str] = field(default_factory=list)  # RAG extension names
+    skills: list[str] = field(default_factory=list)  # Skill extension names
 
 
 @dataclass

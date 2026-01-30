@@ -19,6 +19,7 @@ class ExtensionType(str, Enum):
     AGENT = "agent"
     PROFILE = "profile"
     RAG = "rag"
+    SKILL = "skill"
 
 
 class License(str, Enum):
@@ -145,6 +146,14 @@ class ExtensionManifest:
     # RAG-specific
     retriever_class: str | None = None
 
+    # Skill-specific
+    skill_class: str | None = None
+    input_type: str | None = None  # "files", "directory", "code_snippet"
+    output_type: str | None = None  # "modified_files", "new_files", "report"
+    file_patterns: list[str] = field(default_factory=list)  # e.g. ["*.py"]
+    supports_dry_run: bool = False
+    chain: list[dict[str, Any]] = field(default_factory=list)  # Sub-skills for chained skills
+
     # Dependencies
     requires: list[str] = field(default_factory=list)
 
@@ -196,6 +205,20 @@ class ExtensionManifest:
         elif self.type == ExtensionType.RAG:
             if not self.retriever_class:
                 raise ManifestError("RAG extensions require a retriever_class")
+
+        elif self.type == ExtensionType.SKILL:
+            # Chained skills don't need a skill_class (they compose sub-skills)
+            if not self.skill_class and not self.chain:
+                raise ManifestError(
+                    "Skill extensions require a skill_class or chain"
+                )
+            if self.input_type and self.input_type not in (
+                "files", "directory", "code_snippet",
+            ):
+                raise ManifestError(
+                    f"Invalid input_type: {self.input_type}. "
+                    "Use: files, directory, or code_snippet."
+                )
 
     @classmethod
     def from_yaml(cls, yaml_path: Path) -> ExtensionManifest:
@@ -262,6 +285,12 @@ class ExtensionManifest:
                 agent_class=data.get("agent_class"),
                 profile_class=data.get("profile_class"),
                 retriever_class=data.get("retriever_class"),
+                skill_class=data.get("skill_class"),
+                input_type=data.get("input_type"),
+                output_type=data.get("output_type"),
+                file_patterns=data.get("file_patterns", []),
+                supports_dry_run=bool(data.get("supports_dry_run", False)),
+                chain=data.get("chain", []),
                 requires=data.get("requires", []),
                 price_usd=float(data.get("price_usd", 0.0)),
                 homepage=data.get("homepage"),
@@ -299,6 +328,18 @@ class ExtensionManifest:
             result["profile_class"] = self.profile_class
         if self.retriever_class:
             result["retriever_class"] = self.retriever_class
+        if self.skill_class:
+            result["skill_class"] = self.skill_class
+        if self.input_type:
+            result["input_type"] = self.input_type
+        if self.output_type:
+            result["output_type"] = self.output_type
+        if self.file_patterns:
+            result["file_patterns"] = self.file_patterns
+        if self.supports_dry_run:
+            result["supports_dry_run"] = self.supports_dry_run
+        if self.chain:
+            result["chain"] = self.chain
         if self.requires:
             result["requires"] = self.requires
         if self.price_usd > 0:
