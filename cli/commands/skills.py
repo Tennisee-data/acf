@@ -29,6 +29,16 @@ def get_loader():
     return loader
 
 
+def get_llm():
+    """Auto-detect and return an LLM backend, or None if unavailable."""
+    try:
+        from llm_backend import get_backend
+
+        return get_backend("auto")
+    except Exception:
+        return None
+
+
 @skills_app.command("run")
 def run_skill(
     name: str = typer.Argument(..., help="Skill name"),
@@ -96,7 +106,8 @@ def run_skill(
     # Run the skill
     from skills.runner import SkillRunner
 
-    runner = SkillRunner()
+    llm = get_llm()
+    runner = SkillRunner(llm=llm)
     file_patterns = manifest.file_patterns or None
 
     if dry_run:
@@ -164,7 +175,8 @@ def chain_skill(
     # Run the chain
     from skills.chain_runner import ChainRunner
 
-    runner = ChainRunner(loader=loader)
+    llm = get_llm()
+    runner = ChainRunner(loader=loader, llm=llm)
     output = runner.run(
         chain=manifest.chain,
         target=target,

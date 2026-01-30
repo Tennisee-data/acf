@@ -1,0 +1,17 @@
+name: add-docstrings
+version: 1.0.0
+type: skill
+author: ACF Team
+description: Add Google-style docstrings to Python functions and classes using AI
+license: free
+skill_class: AddDocstringsSkill
+input_type: files
+output_type: modified_files
+file_patterns: ["*.py"]
+supports_dry_run: true
+keywords:
+  - documentation
+  - docstrings
+  - python
+  - google-style
+priority: 50
