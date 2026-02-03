@@ -60,7 +60,12 @@ class ExtensionRegistry:
 class ExtensionLoader:
     """Load and register extensions from the extensions directory.
 
-    Extensions are organized in:
+    Extensions are loaded from multiple locations (in priority order):
+    1. User extensions: ~/.coding-factory/extensions/ (organized by type)
+    2. Official extensions: <repo>/official_extensions/ (flat structure)
+    3. Marketplace official: <repo>/marketplace/official_extensions/ (by type)
+
+    User extensions directory structure:
     ~/.coding-factory/extensions/
     ├── agents/
     │   └── <extension-name>/
@@ -90,11 +95,25 @@ class ExtensionLoader:
 
     DEFAULT_EXTENSIONS_DIR = Path.home() / ".coding-factory" / "extensions"
 
+    @staticmethod
+    def _get_repo_root() -> Path | None:
+        """Find the repository root by looking for known markers."""
+        # Start from this file's location and walk up
+        current = Path(__file__).resolve().parent
+        for _ in range(5):  # Don't search too far up
+            if (current / "official_extensions").exists():
+                return current
+            if (current / ".git").exists():
+                return current
+            current = current.parent
+        return None
+
     def __init__(
         self,
         extensions_dir: Path | None = None,
         enabled_extensions: list[str] | None = None,
         disabled_extensions: list[str] | None = None,
+        include_official: bool = True,
     ):
         """Initialize the extension loader.
 
@@ -102,16 +121,23 @@ class ExtensionLoader:
             extensions_dir: Path to extensions directory.
             enabled_extensions: Whitelist of extension names (None = all).
             disabled_extensions: Blacklist of extension names.
+            include_official: Whether to auto-load official bundled extensions.
         """
         self.extensions_dir = Path(extensions_dir or self.DEFAULT_EXTENSIONS_DIR)
         self.enabled_extensions = set(enabled_extensions) if enabled_extensions else None
         self.disabled_extensions = set(disabled_extensions or [])
+        self.include_official = include_official
 
         self.registry = ExtensionRegistry()
         self._manifests: dict[str, ExtensionManifest] = {}
 
     def discover(self) -> list[str]:
         """Discover and load all installed extensions.
+
+        Scans in order:
+        1. User extensions from ~/.coding-factory/extensions/
+        2. Official bundled extensions from <repo>/official_extensions/
+        3. Marketplace official extensions from <repo>/marketplace/official_extensions/
 
         Returns:
             List of loaded extension names.
@@ -121,11 +147,39 @@ class ExtensionLoader:
         """
         loaded: list[str] = []
 
-        if not self.extensions_dir.exists():
+        # Load user extensions (organized by type)
+        loaded.extend(self._discover_typed_extensions(self.extensions_dir))
+
+        # Load official bundled extensions (if enabled)
+        if self.include_official:
+            repo_root = self._get_repo_root()
+            if repo_root:
+                # Official extensions (flat structure)
+                official_dir = repo_root / "official_extensions"
+                loaded.extend(self._discover_flat_extensions(official_dir))
+
+                # Marketplace official extensions (organized by type)
+                marketplace_dir = repo_root / "marketplace" / "official_extensions"
+                loaded.extend(self._discover_typed_extensions(marketplace_dir))
+
+        return loaded
+
+    def _discover_typed_extensions(self, base_dir: Path) -> list[str]:
+        """Discover extensions organized by type subdirectories.
+
+        Args:
+            base_dir: Base directory containing agents/, profiles/, rag/, skills/.
+
+        Returns:
+            List of loaded extension names.
+        """
+        loaded: list[str] = []
+
+        if not base_dir.exists():
             return loaded
 
         for ext_type in ["agents", "profiles", "rag", "skills"]:
-            type_dir = self.extensions_dir / ext_type
+            type_dir = base_dir / ext_type
             if not type_dir.exists():
                 continue
 
@@ -137,16 +191,59 @@ class ExtensionLoader:
                 if not manifest_path.exists():
                     continue
 
+                # Skip if already loaded (user extensions take priority)
+                if self._is_already_loaded(ext_dir.name):
+                    continue
+
                 try:
                     extension = self._load_extension(ext_dir, manifest_path)
                     if extension:
                         self._register(extension)
                         loaded.append(extension.manifest.name)
                 except (ManifestError, ExtensionLoadError) as e:
-                    # Log error but continue loading other extensions
                     print(f"Warning: Failed to load extension {ext_dir.name}: {e}")
 
         return loaded
+
+    def _discover_flat_extensions(self, base_dir: Path) -> list[str]:
+        """Discover extensions in a flat directory structure.
+
+        Args:
+            base_dir: Directory containing extension folders directly.
+
+        Returns:
+            List of loaded extension names.
+        """
+        loaded: list[str] = []
+
+        if not base_dir.exists():
+            return loaded
+
+        for ext_dir in base_dir.iterdir():
+            if not ext_dir.is_dir():
+                continue
+
+            manifest_path = ext_dir / "manifest.yaml"
+            if not manifest_path.exists():
+                continue
+
+            # Skip if already loaded (user extensions take priority)
+            if self._is_already_loaded(ext_dir.name):
+                continue
+
+            try:
+                extension = self._load_extension(ext_dir, manifest_path)
+                if extension:
+                    self._register(extension)
+                    loaded.append(extension.manifest.name)
+            except (ManifestError, ExtensionLoadError) as e:
+                print(f"Warning: Failed to load extension {ext_dir.name}: {e}")
+
+        return loaded
+
+    def _is_already_loaded(self, name: str) -> bool:
+        """Check if an extension is already loaded."""
+        return name in self._manifests
 
     def _load_extension(
         self, ext_dir: Path, manifest_path: Path
@@ -215,7 +312,7 @@ class ExtensionLoader:
             raise ExtensionLoadError(f"Agent file not found: {agent_file}")
 
         module = self._load_module(
-            f"acf_ext_agent_{manifest.name.replace('-', '_')}", agent_file
+            f"acf_ext_agent_{manifest.name.replace('-', '_')}", agent_file, ext_dir
         )
 
         if not hasattr(module, manifest.agent_class):
@@ -234,7 +331,7 @@ class ExtensionLoader:
             raise ExtensionLoadError(f"Profile file not found: {profile_file}")
 
         module = self._load_module(
-            f"acf_ext_profile_{manifest.name.replace('-', '_')}", profile_file
+            f"acf_ext_profile_{manifest.name.replace('-', '_')}", profile_file, ext_dir
         )
 
         if not hasattr(module, manifest.profile_class):
@@ -253,7 +350,7 @@ class ExtensionLoader:
             raise ExtensionLoadError(f"Retriever file not found: {retriever_file}")
 
         module = self._load_module(
-            f"acf_ext_rag_{manifest.name.replace('-', '_')}", retriever_file
+            f"acf_ext_rag_{manifest.name.replace('-', '_')}", retriever_file, ext_dir
         )
 
         if not hasattr(module, manifest.retriever_class):
@@ -272,7 +369,7 @@ class ExtensionLoader:
             raise ExtensionLoadError(f"Skill file not found: {skill_file}")
 
         module = self._load_module(
-            f"acf_ext_skill_{manifest.name.replace('-', '_')}", skill_file
+            f"acf_ext_skill_{manifest.name.replace('-', '_')}", skill_file, ext_dir
         )
 
         if not hasattr(module, manifest.skill_class):
@@ -282,15 +379,21 @@ class ExtensionLoader:
 
         return module, getattr(module, manifest.skill_class)
 
-    def _load_module(self, module_name: str, file_path: Path) -> Any:
+    def _load_module(
+        self, module_name: str, file_path: Path, ext_dir: Path | None = None
+    ) -> Any:
         """Dynamically load a Python module from file.
 
         Args:
             module_name: Name to assign to the module.
             file_path: Path to the Python file.
+            ext_dir: Extension directory (for finding requirements.txt).
 
         Returns:
             Loaded module.
+
+        Raises:
+            ExtensionLoadError: If module cannot be loaded.
         """
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec is None or spec.loader is None:
@@ -298,8 +401,72 @@ class ExtensionLoader:
 
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
-        spec.loader.exec_module(module)
+
+        try:
+            spec.loader.exec_module(module)
+        except (ImportError, ModuleNotFoundError) as e:
+            # Clean up failed module
+            sys.modules.pop(module_name, None)
+
+            # Check for requirements.txt and offer to install
+            if ext_dir and self._handle_missing_dependency(ext_dir, e):
+                # Retry after installation
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+            else:
+                raise ExtensionLoadError(
+                    f"Missing dependency for {file_path.parent.name}: {e}"
+                )
+
         return module
+
+    def _handle_missing_dependency(self, ext_dir: Path, error: Exception) -> bool:
+        """Handle missing dependency by offering to install requirements.
+
+        Args:
+            ext_dir: Extension directory containing requirements.txt.
+            error: The ImportError that occurred.
+
+        Returns:
+            True if dependencies were installed successfully.
+        """
+        import subprocess
+
+        requirements_file = ext_dir / "requirements.txt"
+        if not requirements_file.exists():
+            return False
+
+        ext_name = ext_dir.name
+        print(f"\n⚠️  Extension '{ext_name}' has missing dependencies: {error}")
+        print(f"   Requirements file: {requirements_file}")
+
+        try:
+            response = input(f"   Install requirements now? [y/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return False
+
+        if response not in ("y", "yes"):
+            print(f"   Skipping '{ext_name}' - dependencies not installed")
+            return False
+
+        print(f"   Installing dependencies for '{ext_name}'...")
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(requirements_file)],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                print(f"   ✓ Dependencies installed successfully")
+                return True
+            else:
+                print(f"   ✗ Installation failed: {result.stderr}")
+                return False
+        except Exception as e:
+            print(f"   ✗ Installation failed: {e}")
+            return False
 
     def _register(self, extension: LoadedExtension) -> None:
         """Register an extension in the registry."""
