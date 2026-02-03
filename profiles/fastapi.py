@@ -137,6 +137,49 @@ async def get_me(current_user: User = Depends(get_current_user)):
 4. Forgetting `async` on route handlers that use `await`
 5. Not using `status.HTTP_*` constants for status codes
 6. Forgetting to add router to app with `app.include_router()`
+7. Implementing custom rate limiting instead of using slowapi or fastapi-limiter
+8. Using in-memory dict for rate limiting (fails in multi-instance deployments)
+
+### Rate Limiting (USE LIBRARIES, NOT CUSTOM CODE)
+For rate limiting, ALWAYS use established libraries. Custom implementations have subtle bugs.
+
+```python
+# RECOMMENDED: slowapi (most popular, battle-tested)
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.post("/login")
+@limiter.limit("5/15minutes")
+async def login(request: Request, credentials: LoginRequest):
+    ...
+
+# For Redis backend (distributed):
+# limiter = Limiter(key_func=get_remote_address, storage_uri="redis://localhost:6379")
+
+# ALTERNATIVE: fastapi-limiter
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
+
+@app.on_event("startup")
+async def startup():
+    redis = aioredis.from_url("redis://localhost")
+    await FastAPILimiter.init(redis)
+
+@app.post("/login", dependencies=[Depends(RateLimiter(times=5, minutes=15))])
+async def login(...):
+    ...
+```
+
+NEVER implement rate limiting manually with Redis INCR/EXPIRE - it has edge cases:
+- TTL not set on first increment = permanent ban
+- Counting successful logins instead of just failures
+- Race conditions in distributed systems
+- Missing Retry-After headers
 
 ### Required Dependencies (requirements.txt)
 ```
@@ -195,6 +238,8 @@ OPTIONAL_DEPENDENCIES = {
     "async_database": ["sqlalchemy[asyncio]>=2.0.0", "asyncpg>=0.29.0"],
     "auth": ["python-jose[cryptography]>=3.3.0", "passlib[bcrypt]>=1.7.4"],
     "testing": ["pytest>=7.4.0", "pytest-asyncio>=0.23.0", "httpx>=0.26.0"],
+    "rate_limiting": ["slowapi>=0.1.9"],
+    "rate_limiting_redis": ["slowapi>=0.1.9", "redis>=4.0.0"],
 }
 
 # Keywords that trigger this profile
@@ -205,6 +250,9 @@ TRIGGER_KEYWORDS = [
     "uvicorn",
     "async api",
     "rest api python",
+    "rate limit",
+    "rate-limit",
+    "throttle",
 ]
 
 

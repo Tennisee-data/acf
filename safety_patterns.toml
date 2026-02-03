@@ -26,3 +26,235 @@
 # Examples:
 # files = ["*_test.py", "tests/*"]
 # patterns = ["example_api_key", "test_password"]
+
+
+# =============================================================================
+# SAFETY-CRITICAL IMPLEMENTATION PATTERNS
+# =============================================================================
+# These patterns inject domain-specific invariants into the implementation
+# prompt when triggered by keywords in the feature description.
+
+[rate_limiting]
+triggers = ["rate limit", "rate-limit", "ratelimit", "throttle", "throttling", "login limit", "brute force", "too many requests", "429"]
+force_premium = false
+invariants = [
+    "MUST use a battle-tested library: slowapi (recommended), fastapi-limiter, or limits",
+    "NEVER implement custom rate limiting logic - it has subtle bugs (TTL, race conditions, distributed state)",
+    "MUST use Redis or similar for distributed rate limiting (in-memory dict fails in multi-instance deployments)",
+    "MUST set TTL on EVERY increment, not just when limit is exceeded",
+    "MUST handle Redis connection failures gracefully (fail-open or fail-closed based on requirements)",
+    "MUST use sliding window or token bucket algorithm, not naive counter",
+    "For login rate limiting: only count FAILED attempts, reset on successful login",
+    "Always return Retry-After header with 429 responses",
+]
+correct_pattern = """
+# RECOMMENDED: Use slowapi for rate limiting (battle-tested, production-ready)
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.post("/login")
+@limiter.limit("5/15minutes")  # 5 attempts per 15 minutes
+async def login(request: Request, credentials: LoginRequest):
+    # slowapi handles all the complexity: Redis, TTL, sliding window, headers
+    ...
+
+# For Redis backend (distributed, production):
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+import redis
+
+redis_client = redis.from_url("redis://localhost:6379")
+limiter = Limiter(key_func=get_remote_address, storage_uri="redis://localhost:6379")
+
+# Requirements: slowapi>=0.1.9, redis>=4.0.0 (if using Redis backend)
+"""
+
+[webhook_security]
+triggers = ["webhook", "stripe webhook", "payment webhook", "github webhook", "slack webhook"]
+force_premium = false
+invariants = [
+    "MUST verify webhook signatures using the provider's SDK method",
+    "MUST use raw request body (bytes) for signature verification, NOT parsed JSON",
+    "MUST implement idempotency using event/delivery ID to prevent duplicate processing",
+    "MUST return 200 quickly, then process asynchronously (webhooks have timeout limits)",
+    "MUST store webhook events before processing for replay capability",
+    "NEVER trust webhook payload without signature verification",
+]
+correct_pattern = """
+# Stripe webhook example (other providers similar)
+import stripe
+from fastapi import Request, HTTPException
+
+@app.post("/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    payload = await request.body()  # Raw bytes, NOT request.json()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, WEBHOOK_SECRET
+        )
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # Idempotency check
+    if await is_event_processed(event.id):
+        return {"status": "already_processed"}
+
+    # Process asynchronously
+    await enqueue_event(event)
+    return {"status": "received"}
+"""
+
+[authentication]
+triggers = ["jwt", "oauth", "authentication", "login", "password", "bcrypt", "token auth"]
+force_premium = false
+invariants = [
+    "MUST use established libraries: python-jose for JWT, passlib for password hashing",
+    "MUST use bcrypt or argon2 for password hashing, NEVER MD5/SHA1/SHA256",
+    "MUST set reasonable JWT expiration times (access: 15-60min, refresh: 7-30 days)",
+    "MUST validate token signature AND expiration on every protected request",
+    "MUST use constant-time comparison for secrets (secrets.compare_digest)",
+    "Store refresh tokens server-side to enable revocation",
+    "Use HttpOnly cookies or secure token storage, avoid localStorage for sensitive tokens",
+]
+correct_pattern = """
+from passlib.context import CryptContext
+from jose import jwt, JWTError
+from datetime import datetime, timedelta
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=15)):
+    to_encode = data.copy()
+    to_encode["exp"] = datetime.utcnow() + expires_delta
+    return jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
+"""
+
+[database_connections]
+triggers = ["database", "sqlalchemy", "postgres", "mysql", "connection pool", "db session"]
+force_premium = false
+invariants = [
+    "MUST use connection pooling (SQLAlchemy does this by default)",
+    "MUST close sessions properly using context managers or dependency injection",
+    "MUST handle connection errors and implement retry logic for transient failures",
+    "MUST use environment variables for database URLs, never hardcode credentials",
+    "For async: use AsyncSession with async context managers",
+    "Set reasonable pool_size and max_overflow based on expected load",
+]
+correct_pattern = """
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from contextlib import contextmanager
+import os
+
+DATABASE_URL = os.environ["DATABASE_URL"]  # Never hardcode!
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,  # Verify connections before use
+)
+SessionLocal = sessionmaker(bind=engine)
+
+# FastAPI dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+"""
+
+[file_uploads]
+triggers = ["file upload", "upload file", "multipart", "image upload", "document upload"]
+force_premium = false
+invariants = [
+    "MUST validate file type using magic bytes, not just extension",
+    "MUST set maximum file size limits",
+    "MUST sanitize filenames to prevent path traversal attacks",
+    "MUST store files outside webroot or use object storage (S3, GCS)",
+    "MUST scan uploaded files for malware in production",
+    "Generate random filenames, don't use user-provided names directly",
+]
+correct_pattern = """
+import uuid
+from pathlib import Path
+from fastapi import UploadFile, HTTPException
+
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/gif"}
+MAX_SIZE = 5 * 1024 * 1024  # 5MB
+
+async def upload_file(file: UploadFile):
+    # Validate content type
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(400, "Invalid file type")
+
+    # Validate size
+    contents = await file.read()
+    if len(contents) > MAX_SIZE:
+        raise HTTPException(400, "File too large")
+
+    # Generate safe filename
+    ext = Path(file.filename).suffix.lower()
+    safe_name = f"{uuid.uuid4()}{ext}"
+
+    # Save to secure location
+    save_path = UPLOAD_DIR / safe_name
+    save_path.write_bytes(contents)
+    return {"filename": safe_name}
+"""
+
+[caching]
+triggers = ["cache", "redis cache", "memoize", "caching"]
+force_premium = false
+invariants = [
+    "MUST set appropriate TTL for all cached values",
+    "MUST handle cache misses gracefully (fetch from source)",
+    "MUST implement cache invalidation strategy",
+    "MUST use established libraries: redis, cachetools, aiocache",
+    "Consider cache stampede prevention for high-traffic keys",
+    "For distributed cache: handle connection failures gracefully",
+]
+correct_pattern = """
+# Using redis with proper error handling
+import redis
+from functools import wraps
+
+redis_client = redis.Redis(host='localhost', decode_responses=True)
+
+def cached(ttl_seconds: int = 300):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            key = f"{func.__name__}:{args}:{kwargs}"
+            try:
+                cached_value = redis_client.get(key)
+                if cached_value:
+                    return json.loads(cached_value)
+            except redis.RedisError:
+                pass  # Cache miss or error, fetch from source
+
+            result = await func(*args, **kwargs)
+
+            try:
+                redis_client.setex(key, ttl_seconds, json.dumps(result))
+            except redis.RedisError:
+                pass  # Failed to cache, but we have the result
+
+            return result
+        return wrapper
+    return decorator
+"""
