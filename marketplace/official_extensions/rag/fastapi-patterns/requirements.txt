@@ -1,0 +1,5 @@
+# No dependencies required for the base extension
+# The patterns themselves document their requirements
+
+# Optional: For advanced file type detection
+# python-magic>=0.4.27

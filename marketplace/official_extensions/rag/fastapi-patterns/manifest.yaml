@@ -1,0 +1,55 @@
+name: fastapi-patterns
+version: 1.0.0
+type: rag
+author: AgentCodeFactory
+description: Production-ready FastAPI patterns for rate limiting, auth, webhooks, database, and more
+license: free
+
+# No heavy dependencies - uses keyword matching for retrieval
+retriever_class: FastAPIPatternRetriever
+
+# Trigger keywords that activate this RAG source
+triggers:
+  - fastapi
+  - rate limit
+  - rate-limit
+  - throttle
+  - authentication
+  - jwt
+  - oauth
+  - webhook
+  - stripe
+  - database
+  - sqlalchemy
+  - file upload
+  - caching
+  - redis
+
+# Categories of patterns included
+categories:
+  - rate-limiting
+  - authentication
+  - webhooks
+  - database
+  - file-uploads
+  - caching
+  - error-handling
+  - testing
+
+# Marketplace metadata
+keywords:
+  - fastapi
+  - python
+  - api
+  - patterns
+  - best-practices
+  - rate-limiting
+  - authentication
+  - webhooks
+
+# Context window impact
+context_tokens: 2000
+min_model_tier: any
+
+# No external dependencies for free version
+requires: []
