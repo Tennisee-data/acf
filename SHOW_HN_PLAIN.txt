@@ -1,0 +1,44 @@
+TITLE (paste into HN title field):
+Show HN: ACF – Local-first multi-agent coding pipeline with a marketplace for shared extensions (MIT)
+
+URL (paste into HN url field):
+https://github.com/Tennisee-data/acf
+
+BODY (paste into HN text field — leave URL blank if you use text, or leave text blank if you use URL):
+Note: HN only allows URL *or* text, not both. Recommended: submit the GitHub URL in the url field, then immediately post the text below as the first comment.
+
+---
+
+FIRST COMMENT (paste as comment right after submitting):
+
+Post body:
+Hey HN,
+I built ACF (AgentCodeFactory but open-source/MIT) because I got tired of sending code to cloud APIs and wanted a structured, local way to run multi-agent workflows for coding tasks. It's a pipeline that runs entirely on your machine (Ollama, LM Studio, or API keys if you want), where you can compose and share extensions like agents, skills, profiles, and RAG sources.
+Quick example:
+acf run "Add login rate-limiting to my FastAPI app"
+Under the hood it's a 7-stage pipeline (Spec → Context gathering → Design → Implementation → Testing → Docker validation → Verification). Each stage feeds artifacts to the next, with optional human approval gates before anything risky (auth changes, secrets, etc.) gets committed. Every run creates a git branch with commits for each iteration—so you can diff, resume, or rollback easily.
+Key bits I find useful:
+
+Routes tasks to different models based on needs (small one for summaries, code-specialized for generation, embedding for RAG).
+YAML policies for enforcement (e.g., block secrets, require >80% coverage, flag payment-code changes).
+RAG over your codebase so agents actually understand patterns, not just grep.
+Marketplace for extensions: someone writes a great security scanner skill or React profile with best practices → publish once, others install and plug in.
+
+Why local? My code (especially proprietary stuff) stays mine. Modern local models (Qwen, Mistral variants, CodeLlama) handle most stages surprisingly well when you split work into focused agents instead of one giant prompt.
+The marketplace is live (though sparse), and extensions include context estimates so you know if it'll fit your hardware/model.
+Current state: the core pipeline works reliably on my setup, but it's still early—one person can only test so much. Vision includes self-improving loops (learning from retry failures), configurable stages (skip Docker if you don't need it), shared policy packs for teams, and way more community extensions.
+I'm looking for:
+
+People running local models who want to stress-test with different sizes/backends
+Folks who've built code-review/transform agents/skills that could become extensions
+Security-minded people to poke at the policy system and scanners
+Anyone with ideas on making pipelines more composable or self-healing
+
+Quick start (Python 3.11+, Ollama running):
+git clone https://github.com/Tennisee-data/acf.git
+cd acf
+pip install -e ".[dev]"
+acf run "Add login rate-limit"
+Repo: https://github.com/Tennisee-data/acf
+Happy to dive into the agent routing, policy engine, how the git integration works, or why I think shared local extensions could be a game-changer for offline/dev privacy workflows. What do you think—useful? Missing pieces? Fire away.
+(And yes, it's possible to monetize more advanced/complex extensions if someone wants to support ongoing work, but that's secondary—the focus is open collaboration.)
