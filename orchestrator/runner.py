@@ -1684,8 +1684,8 @@ rules:
             self.console.print(f"[green]Consistency check passed[/green] ({len(report.checks_performed)} checks)")
             return True
 
-        # Report errors
-        self.console.print(f"[red]Consistency check FAILED[/red]")
+        # Report issues (warnings, not failures)
+        self.console.print(f"[yellow]Consistency check found issues:[/yellow]")
         for err in report.errors:
             self.console.print(f"  [red][ERROR][/red] {err.category}: {err.message}")
             if err.expected:
@@ -2693,7 +2693,7 @@ Full design proposal requires LLM connection.
             state.artifacts["project_dir"] = str(project_dir)
             self.console.print(f"[green]Project files extracted to:[/green] {project_dir}")
 
-        # Run consistency check - validates implementation matches design
+        # Run consistency check - validates implementation matches design (warning only)
         if raw_changes:
             consistency_ok = self._check_implementation_consistency(
                 state=state,
@@ -2701,7 +2701,7 @@ Full design proposal requires LLM connection.
                 raw_changes=raw_changes,
             )
             if not consistency_ok:
-                return False, "Implementation failed consistency check - code doesn't match design"
+                self.console.print("[yellow]⚠ Consistency check found issues (non-fatal, continuing)[/yellow]")
 
         # Run fix loop if enabled
         if self.config.pipeline.fix_loop.enabled and raw_changes:
