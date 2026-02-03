@@ -1002,6 +1002,30 @@ class PipelineRunner:
         self._policy_enabled = policy
         self._policy_rules_path = policy_rules
         self._pr_package_enabled = pr_package
+
+        # Check LLM backend availability before proceeding
+        if self.llm is None:
+            self.console.print()
+            self.console.print("[bold red]Error: No LLM backend available[/bold red]")
+            self.console.print()
+            self.console.print("[yellow]The pipeline requires an LLM backend to run. Please set up one of:[/yellow]")
+            self.console.print()
+            self.console.print("  [cyan]Option 1: Ollama (recommended, local, free)[/cyan]")
+            self.console.print("    1. Install: brew install ollama")
+            self.console.print("    2. Start:   ollama serve")
+            self.console.print("    3. Pull:    ollama pull qwen2.5-coder:7b")
+            self.console.print()
+            self.console.print("  [cyan]Option 2: LM Studio (local, GUI)[/cyan]")
+            self.console.print("    1. Download from https://lmstudio.ai")
+            self.console.print("    2. Start the local server on port 1234")
+            self.console.print()
+            self.console.print("  [cyan]Option 3: Cloud API[/cyan]")
+            self.console.print("    export OPENAI_API_KEY=sk-...")
+            self.console.print("    export ANTHROPIC_API_KEY=sk-...")
+            self.console.print()
+            self.console.print("[dim]Run 'acf check' to verify your LLM backend is working.[/dim]")
+            raise ValueError("No LLM backend available. Start Ollama/LM Studio or configure an API key.")
+
         # Resume or create new run
         if resume_run_id:
             state_machine = self._resume_run(resume_run_id)

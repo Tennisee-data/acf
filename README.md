@@ -14,43 +14,40 @@ AI-powered code generation pipeline. Run locally or use cloud APIs.
 
 ## Quick Start
 
+**1. Install**
 ```bash
-# Install from source (if you cloned the repo)
+git clone https://github.com/Tennisee-data/acf.git
+cd acf
 pip install -e .
-
-# Or with all optional features
-pip install -e ".[full]"
-
-# Run (requires a configured LLM backend - see below)
-acf run "Add user authentication with JWT"
 ```
 
-## Requirements
+**2. Start your LLM backend** (required before running)
 
-- Python 3.11+
-- One of the following LLM backends:
-  - [Ollama](https://ollama.ai) - Local, free, recommended
-  - [LM Studio](https://lmstudio.ai) - Local, free, GUI
-  - [OpenAI API](https://platform.openai.com) - Cloud, paid
-  - [Anthropic API](https://console.anthropic.com) - Cloud, paid
+Pick one:
 
-### LLM Backend Setup
-
-**Quick start with Ollama:**
 ```bash
-# Install Ollama (macOS)
-brew install ollama
+# Option A: Ollama (recommended - local, free)
+brew install ollama          # macOS (see ollama.ai for Linux/Windows)
+ollama serve                 # Start server (keep this running!)
+ollama pull qwen2.5-coder:7b # In another terminal
 
-# Start the server
-ollama serve
+# Option B: LM Studio (local, GUI)
+# Download from https://lmstudio.ai, start local server on port 1234
 
-# Pull a model (in another terminal)
-ollama pull qwen2.5-coder:7b
+# Option C: Cloud API
+export OPENAI_API_KEY=sk-...      # or
+export ANTHROPIC_API_KEY=sk-...
 ```
 
-> **Important:** Update `config.toml` to match your installed models. See guides below.
+**3. Verify and run**
+```bash
+acf check                              # Verify LLM backend is working
+acf run "Add user authentication"      # Run your first feature
+```
 
-**Detailed guides:**
+> **Important:** The pipeline will fail if no LLM backend is available. Make sure Ollama is running (`ollama serve`) or LM Studio's server is started before running `acf run`.
+
+**Detailed setup guides:**
 - [Ollama Setup Guide](docs/OLLAMA_SETUP.md) - Recommended for CLI users
 - [LM Studio Setup Guide](docs/LM_STUDIO_SETUP.md) - GUI alternative
 

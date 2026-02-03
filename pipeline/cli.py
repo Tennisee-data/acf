@@ -28,7 +28,7 @@ except ImportError:
     EXTENSIONS_CLI_AVAILABLE = False
 
 app = typer.Typer(
-    name="coding-factory",
+    name="acf",
     help="AI-powered feature pipeline with local LLM support.",
     add_completion=False,
 )
@@ -164,24 +164,24 @@ def run(
     """Run the feature pipeline for a given description.
 
     Examples:
-        coding-factory run "Add login rate-limit"
-        coding-factory run "Add caching" --auto-approve
-        coding-factory run "Add OAuth" --decompose
-        coding-factory run "Build REST API" --api-contract
-        coding-factory run "Implement feature" --coverage --coverage-threshold 90
-        coding-factory run "Build API" --secrets-scan
-        coding-factory run "Add feature" --dependency-audit
-        coding-factory run "Deploy service" --rollback-strategy
-        coding-factory run "Build service" --observability
-        coding-factory run "Build app" --config
-        coding-factory run "Build project" --docs
-        coding-factory run "Review code" --code-review
-        coding-factory run "Deploy feature" --policy
-        coding-factory run "Deploy feature" --policy --policy-rules custom_rules.yaml
-        coding-factory run "Build feature" --pr-package
-        coding-factory run "Fix bug" --resume 2026-01-04-143052
-        coding-factory run - --jira PROJ-123 --repo ./project
-        coding-factory run - --issue https://github.com/org/repo/issues/42
+        acf run "Add login rate-limit"
+        acf run "Add caching" --auto-approve
+        acf run "Add OAuth" --decompose
+        acf run "Build REST API" --api-contract
+        acf run "Implement feature" --coverage --coverage-threshold 90
+        acf run "Build API" --secrets-scan
+        acf run "Add feature" --dependency-audit
+        acf run "Deploy service" --rollback-strategy
+        acf run "Build service" --observability
+        acf run "Build app" --config
+        acf run "Build project" --docs
+        acf run "Review code" --code-review
+        acf run "Deploy feature" --policy
+        acf run "Deploy feature" --policy --policy-rules custom_rules.yaml
+        acf run "Build feature" --pr-package
+        acf run "Fix bug" --resume 2026-01-04-143052
+        acf run - --jira PROJ-123 --repo ./project
+        acf run - --issue https://github.com/org/repo/issues/42
     """
     config = get_config()
     repo_path = repo or Path.cwd()
@@ -260,7 +260,7 @@ def run(
             rprint("[yellow]Run paused. Resume with:[/yellow]")
             # Use short description for resume command
             short_feature = actual_feature[:50] + "..." if len(actual_feature) > 50 else actual_feature
-            rprint(f"  coding-factory run \"{short_feature}\" --resume {state.run_id}")
+            rprint(f"  acf run \"{short_feature}\" --resume {state.run_id}")
         elif state.status.value == "failed":
             rprint()
             rprint(f"[red]Run failed: {state.last_error}[/red]")
@@ -313,10 +313,10 @@ def new(
     """Create a new project from template.
 
     Examples:
-        coding-factory new my-api
-        coding-factory new my-cli --template cli
-        coding-factory new my-app --template fastapi --description "My REST API"
-        coding-factory new my-project -o ~/projects --install
+        acf new my-api
+        acf new my-cli --template cli
+        acf new my-app --template fastapi --description "My REST API"
+        acf new my-project -o ~/projects --install
     """
     rprint(f"[bold blue]Coding Factory v{__version__}[/bold blue]")
     rprint()
@@ -546,8 +546,8 @@ def extract(
     into actual runnable files.
 
     Examples:
-        coding-factory extract 2026-01-05-151822
-        coding-factory extract 2026-01-05-151822 -o ~/my-project
+        acf extract 2026-01-05-151822
+        acf extract 2026-01-05-151822 -o ~/my-project
     """
     import re
     import json as json_module
@@ -635,7 +635,7 @@ def scaffold(
     README.md, .env.example, and run.sh in the generated_project folder.
 
     Examples:
-        coding-factory scaffold 2026-01-05-151822
+        acf scaffold 2026-01-05-151822
     """
     from agents.scaffold_agent import ProjectScaffoldAgent
     from agents import AgentInput
@@ -646,7 +646,7 @@ def scaffold(
 
     if not project_dir.exists():
         rprint(f"[red]No generated_project found for run {run_id}[/red]")
-        rprint(f"[dim]Run 'coding-factory extract {run_id}' first[/dim]")
+        rprint(f"[dim]Run 'acf extract {run_id}' first[/dim]")
         raise typer.Exit(1)
 
     rprint(f"[bold blue]Generating scaffold for {run_id}[/bold blue]")
@@ -728,8 +728,8 @@ def security_scan(
     - Dependency vulnerability check (pip-audit)
 
     Examples:
-        coding-factory security-scan ./my-project
-        coding-factory security-scan artifacts/2026-01-05/generated_project --full
+        acf security-scan ./my-project
+        acf security-scan artifacts/2026-01-05/generated_project --full
     """
     from tools.security import scan_generated_files, full_security_scan
 
@@ -884,10 +884,10 @@ def check_health(
     - Updates deprecated patterns where safe
 
     Examples:
-        coding-factory check-health
-        coding-factory check-health --fix
-        coding-factory check-health --fix --verify
-        coding-factory check-health ./my-project --fix --pr
+        acf check-health
+        acf check-health --fix
+        acf check-health --fix --verify
+        acf check-health ./my-project --fix --pr
     """
     from tools.health_check import check_health as run_health_check, create_health_pr
 
@@ -1017,8 +1017,8 @@ def api_probe(
     probes to test if the API meets the requirements.
 
     Examples:
-        coding-factory api-probe 2026-01-05-151822
-        coding-factory api-probe 2026-01-05-151822 --url http://localhost:5000
+        acf api-probe 2026-01-05-151822
+        acf api-probe 2026-01-05-151822 --url http://localhost:5000
     """
     from tools.api_probe import run_acceptance_probes, generate_probe_report_markdown
 
@@ -1084,8 +1084,8 @@ def runtime_check(
     - local: For simple scripts, libraries
 
     Examples:
-        coding-factory runtime-check ./my-project
-        coding-factory runtime-check . --feature "Deploy to production"
+        acf runtime-check ./my-project
+        acf runtime-check . --feature "Deploy to production"
     """
     from agents.runtime_decision_agent import decide_runtime
 
@@ -1169,7 +1169,7 @@ def generate_tests(
     - conftest.py with common fixtures
 
     Examples:
-        coding-factory generate-tests 2026-01-05-151822
+        acf generate-tests 2026-01-05-151822
     """
     config = get_config()
     project_dir = Path(config.pipeline.artifacts_dir) / run_id / "generated_project"
@@ -1346,9 +1346,9 @@ def deploy(
     - custom: Run custom deploy script
 
     Examples:
-        coding-factory deploy 2026-01-05-151822
-        coding-factory deploy 2026-01-05-151822 --version v1.0.0
-        coding-factory deploy 2026-01-05-151822 --strategy fly
+        acf deploy 2026-01-05-151822
+        acf deploy 2026-01-05-151822 --version v1.0.0
+        acf deploy 2026-01-05-151822 --strategy fly
     """
     from tools.deploy import DeploymentManager, DeployConfig, generate_deploy_script
 
@@ -1449,8 +1449,8 @@ def rollback(
     - custom: Run rollback.sh script
 
     Examples:
-        coding-factory rollback 2026-01-05-151822
-        coding-factory rollback 2026-01-05-151822 --to v0.9.0
+        acf rollback 2026-01-05-151822
+        acf rollback 2026-01-05-151822 --to v0.9.0
     """
     from tools.rollback import RollbackManager, generate_rollback_script
 
@@ -1515,7 +1515,7 @@ def deploy_history(
     """Show deployment history for a run.
 
     Examples:
-        coding-factory deploy-history 2026-01-05-151822
+        acf deploy-history 2026-01-05-151822
     """
     from tools.rollback import RollbackManager
 
@@ -1563,8 +1563,8 @@ def dashboard(
     Requires: pip install fastapi uvicorn
 
     Examples:
-        coding-factory dashboard
-        coding-factory dashboard --port 3000
+        acf dashboard
+        acf dashboard --port 3000
     """
     try:
         from dashboard import run_dashboard
@@ -1616,15 +1616,15 @@ def index(
     """Index repository for RAG-powered search.
 
     Creates vector embeddings of your codebase for semantic search.
-    The index is stored in .coding-factory-index/ directory.
+    The index is stored in .acf-index/ directory.
 
     Use --incremental for fast updates that only re-index changed files.
 
     Examples:
-        coding-factory index
-        coding-factory index --force
-        coding-factory index --incremental
-        coding-factory index -r /path/to/repo
+        acf index
+        acf index --force
+        acf index --incremental
+        acf index -r /path/to/repo
     """
     from rag import CodeRetriever
 
@@ -1700,9 +1700,9 @@ def search(
     """Search indexed codebase using natural language.
 
     Examples:
-        coding-factory search "authentication logic"
-        coding-factory search "database connection" --top 10
-        coding-factory search "error handling" --content
+        acf search "authentication logic"
+        acf search "database connection" --top 10
+        acf search "error handling" --content
     """
     from rag import CodeRetriever
 
@@ -1715,7 +1715,7 @@ def search(
     )
 
     if not retriever.is_indexed():
-        rprint("[yellow]Repository not indexed. Run 'coding-factory index' first.[/yellow]")
+        rprint("[yellow]Repository not indexed. Run 'acf index' first.[/yellow]")
         raise typer.Exit(1)
 
     rprint(f"[dim]Searching for: {query}[/dim]")
@@ -1829,17 +1829,17 @@ def index_add_repo(
     Allows indexing multiple repositories into a single searchable index.
 
     Examples:
-        coding-factory index-add-repo /path/to/other-repo
-        coding-factory index-add-repo /path/to/lib --id my-lib
-        coding-factory index-add-repo /path/to/dep --base /path/to/main-repo
+        acf index-add-repo /path/to/other-repo
+        acf index-add-repo /path/to/lib --id my-lib
+        acf index-add-repo /path/to/dep --base /path/to/main-repo
     """
     from rag import CodeRetriever
 
     config = get_config()
     base_path = base_repo or Path.cwd()
 
-    if not (base_path / ".coding-factory-index").exists():
-        rprint("[yellow]Base repository not indexed. Run 'coding-factory index' first.[/yellow]")
+    if not (base_path / ".acf-index").exists():
+        rprint("[yellow]Base repository not indexed. Run 'acf index' first.[/yellow]")
         raise typer.Exit(1)
 
     rprint(f"[bold blue]Coding Factory v{__version__}[/bold blue]")
@@ -1882,15 +1882,15 @@ def index_remove_repo(
     """Remove a repository from the index.
 
     Examples:
-        coding-factory index-remove-repo my-lib
-        coding-factory index-remove-repo old-dep --base /path/to/main-repo
+        acf index-remove-repo my-lib
+        acf index-remove-repo old-dep --base /path/to/main-repo
     """
     from rag import CodeRetriever
 
     config = get_config()
     base_path = base_repo or Path.cwd()
 
-    if not (base_path / ".coding-factory-index").exists():
+    if not (base_path / ".acf-index").exists():
         rprint("[yellow]No index found.[/yellow]")
         raise typer.Exit(1)
 
@@ -1923,8 +1923,8 @@ def index_repos(
     """List all repositories in the index.
 
     Examples:
-        coding-factory index-repos
-        coding-factory index-repos --repo /path/to/project
+        acf index-repos
+        acf index-repos --repo /path/to/project
     """
     from rag import CodeRetriever
 
@@ -1995,10 +1995,10 @@ def rag_optimize(
     multiple pathways for different query types.
 
     Examples:
-        coding-factory rag-optimize ./docs
-        coding-factory rag-optimize ./docs --output ./optimized
-        coding-factory rag-optimize ./docs --skip-images
-        coding-factory rag-optimize ./docs --index
+        acf rag-optimize ./docs
+        acf rag-optimize ./docs --output ./optimized
+        acf rag-optimize ./docs --skip-images
+        acf rag-optimize ./docs --index
     """
     from agents.rag_optimizer_agent import RAGOptimizerAgent
 
@@ -2110,9 +2110,9 @@ def web(
     """Start the web interface.
 
     Examples:
-        coding-factory web
-        coding-factory web --port 8080
-        coding-factory web --reload
+        acf web
+        acf web --port 8080
+        acf web --reload
     """
     import uvicorn
 
@@ -2146,9 +2146,9 @@ def iterate(
     Takes a previous run and applies improvements/modifications.
 
     Examples:
-        coding-factory iterate 2026-01-05-151822 "Add product categories"
-        coding-factory iterate 2026-01-05-151822 "Improve CSS with animations"
-        coding-factory iterate 2026-01-05-151822 "Add search functionality" -y
+        acf iterate 2026-01-05-151822 "Add product categories"
+        acf iterate 2026-01-05-151822 "Improve CSS with animations"
+        acf iterate 2026-01-05-151822 "Add search functionality" -y
     """
     import json as json_module
 
@@ -2181,7 +2181,7 @@ def iterate(
 
     if not project_dir or not project_dir.exists():
         rprint(f"[red]No project found for run {run_id}[/red]")
-        rprint(f"[dim]Run 'coding-factory extract {run_id}' first if needed[/dim]")
+        rprint(f"[dim]Run 'acf extract {run_id}' first if needed[/dim]")
         raise typer.Exit(1)
 
     rprint(f"[bold blue]Coding Factory - Iteration Mode[/bold blue]")
@@ -2228,7 +2228,7 @@ def iterate(
         elif state.status.value == "paused":
             rprint()
             rprint("[yellow]Iteration paused. Resume with:[/yellow]")
-            rprint(f"  coding-factory run \"{iteration_feature}\" --resume {state.run_id}")
+            rprint(f"  acf run \"{iteration_feature}\" --resume {state.run_id}")
         elif state.status.value == "failed":
             rprint()
             rprint(f"[red]Iteration failed: {state.last_error}[/red]")
@@ -2251,7 +2251,7 @@ def history(
     Displays commit history and branches for version control.
 
     Examples:
-        coding-factory history 2026-01-05-151822
+        acf history 2026-01-05-151822
     """
     config = get_config()
     project_dir = Path(config.pipeline.artifacts_dir) / run_id / "generated_project"
@@ -2324,7 +2324,7 @@ def branches(
     Shows available iteration branches.
 
     Examples:
-        coding-factory branches 2026-01-05-151822
+        acf branches 2026-01-05-151822
     """
     config = get_config()
     project_dir = Path(config.pipeline.artifacts_dir) / run_id / "generated_project"
@@ -2394,8 +2394,8 @@ def push(
     Handles fetch, rebase (if needed), and push.
 
     Examples:
-        coding-factory push 2026-01-05-151822 -r git@github.com:user/my-app.git
-        coding-factory push 2026-01-05-151822  # Uses config remote_url
+        acf push 2026-01-05-151822 -r git@github.com:user/my-app.git
+        acf push 2026-01-05-151822  # Uses config remote_url
     """
     config = get_config()
     project_dir = Path(config.pipeline.artifacts_dir) / run_id / "generated_project"
@@ -2409,7 +2409,7 @@ def push(
     git = GitManager(project_dir)
 
     if not git.is_repo():
-        rprint(f"[red]No git repository found. Run 'coding-factory scaffold {run_id}' first.[/red]")
+        rprint(f"[red]No git repository found. Run 'acf scaffold {run_id}' first.[/red]")
         raise typer.Exit(1)
 
     # Get remote URL
@@ -2477,9 +2477,9 @@ def tag(
     Auto-increments version based on existing tags (v0.1.0 → v0.1.1).
 
     Examples:
-        coding-factory tag 2026-01-05-151822
-        coding-factory tag 2026-01-05-151822 -m "First release" --push
-        coding-factory tag 2026-01-05-151822 --bump minor
+        acf tag 2026-01-05-151822
+        acf tag 2026-01-05-151822 -m "First release" --push
+        acf tag 2026-01-05-151822 --bump minor
     """
     config = get_config()
     project_dir = Path(config.pipeline.artifacts_dir) / run_id / "generated_project"
@@ -2533,7 +2533,7 @@ def tag(
         if not push_tag:
             rprint()
             rprint("[dim]To push this tag:[/dim]")
-            rprint(f"  coding-factory push {run_id}")
+            rprint(f"  acf push {run_id}")
             rprint(f"  cd {project_dir} && git push origin {result.output}")
     else:
         rprint(f"[red]✗ {result.message}[/red]")
@@ -2572,9 +2572,9 @@ def pr(
     Requires gh CLI installed and authenticated (gh auth login).
 
     Examples:
-        coding-factory pr 2026-01-05-151822
-        coding-factory pr 2026-01-05-151822 -t "Add dark mode feature"
-        coding-factory pr 2026-01-05-151822 --draft
+        acf pr 2026-01-05-151822
+        acf pr 2026-01-05-151822 -t "Add dark mode feature"
+        acf pr 2026-01-05-151822 --draft
     """
     config = get_config()
     project_dir = Path(config.pipeline.artifacts_dir) / run_id / "generated_project"
@@ -2706,8 +2706,8 @@ def template_create(
     Saves the project structure as a reusable template.
 
     Examples:
-        coding-factory template-create my-api
-        coding-factory template-create my-cli -s /path/to/project -d "My CLI template"
+        acf template-create my-api
+        acf template-create my-cli -s /path/to/project -d "My CLI template"
     """
     from scaffolding import save_template, get_templates_dir
 
@@ -2734,7 +2734,7 @@ def template_create(
         rprint(f"[green]✓ Template created successfully![/green]")
         rprint(f"[dim]Location: {template_dir}[/dim]")
         rprint()
-        rprint(f"Use with: [cyan]coding-factory new my-project --template {name}[/cyan]")
+        rprint(f"Use with: [cyan]acf new my-project --template {name}[/cyan]")
 
     except Exception as e:
         rprint(f"[red]Error:[/red] {e}")
@@ -2748,8 +2748,8 @@ def template_show(
     """Show details of a template.
 
     Examples:
-        coding-factory template-show fastapi
-        coding-factory template-show my-custom-template
+        acf template-show fastapi
+        acf template-show my-custom-template
     """
     from scaffolding import get_template, BUILTIN_TEMPLATES
 
@@ -2801,8 +2801,8 @@ def template_delete(
     Cannot delete built-in templates.
 
     Examples:
-        coding-factory template-delete my-old-template
-        coding-factory template-delete unused-template --force
+        acf template-delete my-old-template
+        acf template-delete unused-template --force
     """
     from scaffolding import delete_template, BUILTIN_TEMPLATES
 
@@ -2868,9 +2868,9 @@ def market_search(
     """Search the template marketplace.
 
     Examples:
-        coding-factory market-search fastapi
-        coding-factory market-search --language python
-        coding-factory market-search api --framework flask
+        acf market-search fastapi
+        acf market-search --language python
+        acf market-search api --framework flask
     """
     from scaffolding import MarketplaceClient, MarketplaceError
 
@@ -2923,8 +2923,8 @@ def market_install(
     """Install a template from the marketplace.
 
     Examples:
-        coding-factory market-install awesome-fastapi
-        coding-factory market-install user/template-name --force
+        acf market-install awesome-fastapi
+        acf market-install user/template-name --force
     """
     from scaffolding import MarketplaceClient, MarketplaceError, LocalRegistry
 
@@ -2944,7 +2944,7 @@ def market_install(
 
         rprint(f"[green]✓ Template '{template.name}' installed successfully![/green]")
         rprint()
-        rprint(f"Use with: [cyan]coding-factory new my-project --template {template.name}[/cyan]")
+        rprint(f"Use with: [cyan]acf new my-project --template {template.name}[/cyan]")
 
     except MarketplaceError as e:
         rprint(f"[red]Error:[/red] {e}")
@@ -2958,7 +2958,7 @@ def market_info(
     """Show details of a marketplace template.
 
     Examples:
-        coding-factory market-info awesome-fastapi
+        acf market-info awesome-fastapi
     """
     from scaffolding import MarketplaceClient, MarketplaceError
 
@@ -3000,8 +3000,8 @@ def market_publish(
     Requires CODING_FACTORY_API_KEY environment variable.
 
     Examples:
-        coding-factory market-publish ~/.coding-factory/templates/my-template
-        coding-factory market-publish ./my-template --tags "fastapi,api,rest"
+        acf market-publish ~/.acf/templates/my-template
+        acf market-publish ./my-template --tags "fastapi,api,rest"
     """
     import os
     from scaffolding import MarketplaceClient, MarketplaceError
@@ -3048,8 +3048,8 @@ def market_featured(
     """Show featured/popular templates from the marketplace.
 
     Examples:
-        coding-factory market-featured
-        coding-factory market-featured --limit 10
+        acf market-featured
+        acf market-featured --limit 10
     """
     from scaffolding import MarketplaceClient, MarketplaceError
 
@@ -3111,9 +3111,9 @@ def memory_index(
     similarity search and pattern learning.
 
     Examples:
-        coding-factory memory-index --all
-        coding-factory memory-index --run 2026-01-04-132634
-        coding-factory memory-index --all --force
+        acf memory-index --all
+        acf memory-index --run 2026-01-04-132634
+        acf memory-index --all --force
     """
     from memory import MemoryStore, RunIndexer
     from rag.embeddings import OllamaEmbeddings
@@ -3130,9 +3130,9 @@ def memory_index(
 
     # Determine store path
     if config.memory.store_location == "local":
-        store_path = Path.cwd() / ".coding-factory-memory"
+        store_path = Path.cwd() / ".acf-memory"
     else:
-        store_path = Path.home() / ".coding-factory" / "memory"
+        store_path = Path.home() / ".acf" / "memory"
 
     rprint(f"[bold blue]Memory Indexing[/bold blue]")
     rprint(f"[dim]Store: {store_path}[/dim]")
@@ -3197,10 +3197,10 @@ def memory_search(
     - hybrid: Weighted combination (recommended, default)
 
     Examples:
-        coding-factory memory-search "rate limiting"
-        coding-factory memory-search "authentication" --type decision
-        coding-factory memory-search "StreamingResponse" --mode lexical
-        coding-factory memory-search "error handling" --mode hybrid
+        acf memory-search "rate limiting"
+        acf memory-search "authentication" --type decision
+        acf memory-search "StreamingResponse" --mode lexical
+        acf memory-search "error handling" --mode hybrid
     """
     from memory import MemoryStore, MemoryRetriever, SearchMode
     from memory.retriever import RetrieverConfig
@@ -3215,9 +3215,9 @@ def memory_search(
 
     # Determine store path
     if config.memory.store_location == "local":
-        store_path = Path.cwd() / ".coding-factory-memory"
+        store_path = Path.cwd() / ".acf-memory"
     else:
-        store_path = Path.home() / ".coding-factory" / "memory"
+        store_path = Path.home() / ".acf" / "memory"
 
     if not store_path.exists():
         rprint("[yellow]No memory store found. Run 'memory-index --all' first.[/yellow]")
@@ -3295,9 +3295,9 @@ def memory_patterns(
     """View or extract learned patterns.
 
     Examples:
-        coding-factory memory-patterns
-        coding-factory memory-patterns --extract
-        coding-factory memory-patterns --export PATTERNS.md
+        acf memory-patterns
+        acf memory-patterns --extract
+        acf memory-patterns --export PATTERNS.md
     """
     from memory import MemoryStore, PatternExtractor
 
@@ -3309,9 +3309,9 @@ def memory_patterns(
 
     # Determine store path
     if config.memory.store_location == "local":
-        store_path = Path.cwd() / ".coding-factory-memory"
+        store_path = Path.cwd() / ".acf-memory"
     else:
-        store_path = Path.home() / ".coding-factory" / "memory"
+        store_path = Path.home() / ".acf" / "memory"
 
     if not store_path.exists():
         rprint("[yellow]No memory store found. Run 'memory-index --all' first.[/yellow]")
@@ -3371,7 +3371,7 @@ def memory_stats() -> None:
     """Show memory store statistics.
 
     Examples:
-        coding-factory memory-stats
+        acf memory-stats
     """
     from memory import MemoryStore
 
@@ -3383,9 +3383,9 @@ def memory_stats() -> None:
 
     # Determine store path
     if config.memory.store_location == "local":
-        store_path = Path.cwd() / ".coding-factory-memory"
+        store_path = Path.cwd() / ".acf-memory"
     else:
-        store_path = Path.home() / ".coding-factory" / "memory"
+        store_path = Path.home() / ".acf" / "memory"
 
     if not store_path.exists():
         rprint("[yellow]No memory store found. Run 'memory-index --all' first.[/yellow]")
@@ -3457,16 +3457,16 @@ def routing_check(
 
     Examples:
         # Show all routing configuration
-        coding-factory routing-check
+        acf routing-check
 
         # Check routing for a specific stage
-        coding-factory routing-check --stage design
+        acf routing-check --stage design
 
         # Simulate routing for a task
-        coding-factory routing-check --stage implementation --size l --category payments
+        acf routing-check --stage implementation --size l --category payments
 
         # See retry escalation
-        coding-factory routing-check --stage fix --retry 2
+        acf routing-check --stage fix --retry 2
     """
     from routing import ModelRouter, ModelTier
     from routing.router import STAGE_ROUTING, SIZE_ROUTING
@@ -3551,7 +3551,7 @@ def plugins_list() -> None:
     """List installed plugins.
 
     Examples:
-        coding-factory plugins
+        acf plugins
     """
     from plugins import PluginLoader
 
@@ -3584,7 +3584,7 @@ def plugins_list() -> None:
             exists = "[green]✓[/green]" if d.exists() else "[dim]✗[/dim]"
             rprint(f"  {exists} {d}")
         rprint()
-        rprint("Use 'coding-factory plugin-create <name>' to create a new plugin")
+        rprint("Use 'acf plugin-create <name>' to create a new plugin")
         return
 
     rprint("[bold blue]Installed Plugins[/bold blue]")
@@ -3617,17 +3617,17 @@ def plugin_install(
         False,
         "--global",
         "-g",
-        help="Install to global plugins directory (~/.coding-factory/plugins)",
+        help="Install to global plugins directory (~/.acf/plugins)",
     ),
 ) -> None:
     """Install a plugin from a local directory.
 
     Examples:
         # Install to local .plugins/
-        coding-factory plugin-install ./my-plugin
+        acf plugin-install ./my-plugin
 
         # Install globally
-        coding-factory plugin-install ./my-plugin --global
+        acf plugin-install ./my-plugin --global
     """
     import shutil
 
@@ -3652,7 +3652,7 @@ def plugin_install(
 
     # Determine target directory
     if global_install:
-        target_base = Path.home() / ".coding-factory" / "plugins"
+        target_base = Path.home() / ".acf" / "plugins"
     else:
         target_base = Path.cwd() / ".plugins"
 
@@ -3691,13 +3691,13 @@ def plugin_create(
 
     Examples:
         # Create plugin in current directory
-        coding-factory plugin-create my-validator
+        acf plugin-create my-validator
 
         # Create with specific hook point
-        coding-factory plugin-create compliance-checker --hook after:code_review
+        acf plugin-create compliance-checker --hook after:code_review
 
         # Create in specific directory
-        coding-factory plugin-create my-plugin -o ./plugins
+        acf plugin-create my-plugin -o ./plugins
     """
     output_dir = output or Path.cwd()
     plugin_dir = output_dir / name
@@ -3841,10 +3841,10 @@ Custom plugin for Coding Factory.
 
 ```bash
 # Install locally
-coding-factory plugin-install ./{name}
+acf plugin-install ./{name}
 
 # Or install globally
-coding-factory plugin-install ./{name} --global
+acf plugin-install ./{name} --global
 ```
 
 ## Configuration
@@ -3880,7 +3880,7 @@ This plugin runs at `{hook}`.
     rprint()
     rprint("Next steps:")
     rprint(f"  1. Edit {plugin_dir}/agent.py to implement your logic")
-    rprint(f"  2. Install: coding-factory plugin-install {plugin_dir}")
+    rprint(f"  2. Install: acf plugin-install {plugin_dir}")
     rprint("  3. Run pipeline to test your plugin")
 
 
